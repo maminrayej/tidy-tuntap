@@ -1,3 +1,6 @@
 mod bindings;
-pub mod iface;
+mod flags;
+mod ioctl;
+mod sockaddr;
 
+pub mod iface;
