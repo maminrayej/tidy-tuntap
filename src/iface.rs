@@ -28,7 +28,8 @@ enum Op {
 }
 
 pub struct Interface {
-    name: [i8; 16],
+    name_raw: [i8; 16],
+    name: String,
     file: std::fs::File,
     socket: RawFd,
 }
@@ -61,7 +62,16 @@ impl Interface {
         unsafe { ioctl::tunsetiff(file.as_raw_fd(), &ifr as *const ifreq as u64)? };
 
         // Get the name chosen by the kernel.
-        let name = unsafe { ifr.ifr_ifrn.ifrn_name };
+        let name_raw = unsafe { ifr.ifr_ifrn.ifrn_name };
+        let name = String::from_iter(name_raw.iter().map_while(|c| {
+            let c = *c as u8 as char;
+
+            if c != '\0' {
+                Some(c)
+            } else {
+                None
+            }
+        }));
 
         let socket = nix::sys::socket::socket(
             nix::sys::socket::AddressFamily::Inet,
@@ -70,11 +80,16 @@ impl Interface {
             None,
         )?;
 
-        Ok(Interface { name, file, socket })
+        Ok(Interface {
+            name_raw,
+            name,
+            file,
+            socket,
+        })
     }
 
-    pub fn name(&self) -> String {
-        self.name.iter().map(|c| *c as u8 as char).collect()
+    pub fn name(&self) -> &str {
+        self.name.as_str()
     }
 
     pub fn flags(&self) -> io::Result<Flags> {
@@ -82,29 +97,11 @@ impl Interface {
     }
 
     pub fn bring_up(&self) -> io::Result<()> {
-        self.mod_flags(Op::Add, (nix::libc::IFF_UP | nix::libc::IFF_RUNNING) as i16)
+        self.mod_flags(Op::Add, nix::libc::IFF_UP | nix::libc::IFF_RUNNING)
     }
 
     pub fn bring_down(&self) -> io::Result<()> {
-        self.mod_flags(Op::Del, (nix::libc::IFF_UP | nix::libc::IFF_RUNNING) as i16)
-    }
-
-    pub fn set_metric(&self, metric: i32) -> io::Result<()> {
-        let mut ifreq = self.new_ifreq();
-
-        ifreq.ifr_ifru.ifru_ivalue = metric;
-
-        unsafe { ioctl::siocsifmetric(self.socket, &ifreq as *const ifreq)? };
-
-        Ok(())
-    }
-
-    pub fn get_metric(&self) -> io::Result<i32> {
-        let mut ifreq = self.new_ifreq();
-
-        unsafe { ioctl::siocgifmetric(self.socket, &mut ifreq as *mut ifreq)? };
-
-        Ok(unsafe { ifreq.ifr_ifru.ifru_ivalue })
+        self.mod_flags(Op::Del, nix::libc::IFF_UP | nix::libc::IFF_RUNNING)
     }
 
     pub fn set_mtu(&self, mtu: i32) -> io::Result<()> {
@@ -165,6 +162,26 @@ impl Interface {
         }))
     }
 
+    pub fn set_brd_addr(&self, addr: net::Ipv4Addr) -> io::Result<()> {
+        let mut ifreq = self.new_ifreq();
+
+        ifreq.ifr_ifru.ifru_dstaddr = unsafe { std::mem::transmute(to_sockaddr_in(addr)) };
+
+        unsafe { ioctl::siocsifbrdaddr(self.socket, &ifreq as *const ifreq)? };
+
+        Ok(())
+    }
+
+    pub fn get_brd_addr(&self) -> io::Result<net::Ipv4Addr> {
+        let mut ifreq = self.new_ifreq();
+
+        unsafe { ioctl::siocgifbrdaddr(self.socket, &mut ifreq as *mut ifreq)? };
+
+        Ok(to_ipv4(unsafe {
+            std::mem::transmute(ifreq.ifr_ifru.ifru_dstaddr)
+        }))
+    }
+
     pub fn set_dst_addr(&self, addr: net::Ipv4Addr) -> io::Result<()> {
         let mut ifreq = self.new_ifreq();
 
@@ -206,28 +223,28 @@ impl Interface {
     fn new_ifreq(&self) -> ifreq {
         let mut ifreq: ifreq = unsafe { std::mem::zeroed() };
 
-        ifreq.ifr_ifrn.ifrn_name = self.name;
+        ifreq.ifr_ifrn.ifrn_name = self.name_raw;
 
         ifreq
     }
 
-    fn read_flags(&self) -> io::Result<i16> {
+    fn read_flags(&self) -> io::Result<i32> {
         let mut ifreq = self.new_ifreq();
 
         unsafe { ioctl::siocgifflags(self.socket, &mut ifreq as *mut ifreq)? };
 
-        Ok(unsafe { ifreq.ifr_ifru.ifru_flags })
+        Ok(unsafe { ifreq.ifr_ifru.ifru_flags.into() })
     }
 
-    fn mod_flags(&self, op: Op, new_flags: i16) -> io::Result<()> {
+    fn mod_flags(&self, op: Op, new_flags: i32) -> io::Result<()> {
         let mut ifreq = self.new_ifreq();
 
-        ifreq.ifr_ifru.ifru_flags = self.read_flags()?;
+        ifreq.ifr_ifru.ifru_flags = self.read_flags()? as i16;
 
         unsafe {
             match op {
-                Op::Add => ifreq.ifr_ifru.ifru_flags |= new_flags,
-                Op::Del => ifreq.ifr_ifru.ifru_flags &= !(new_flags),
+                Op::Add => ifreq.ifr_ifru.ifru_flags |= new_flags as i16,
+                Op::Del => ifreq.ifr_ifru.ifru_flags &= !(new_flags) as i16,
             }
 
             ioctl::siocsifflags(self.socket, &ifreq as *const ifreq)?;

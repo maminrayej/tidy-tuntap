@@ -1,9 +1,15 @@
 #!/bin/bash
 
+# Exit if any command failed.
+set -e
+
 cargo build --examples
 
-# Set CAP_NET_ADMIN for each example.
-ls ./target/debug/examples/* | while read line
+ls ./target/debug/examples/* | grep /[a-zA-Z0-9_]*$ | while read example
 do
-	sudo setcap "cap_net_admin=ep" $line
+	sudo setcap "cap_net_admin=ep" $example
+
+	echo "Running $example..."
+	$example
 done
+

@@ -19,33 +19,34 @@ bitflags::bitflags! {
     // IFF_LOWER_UP      Driver signals L1 up (since Linux 2.6.17)
     // IFF_DORMANT       Driver signals dormant (since Linux 2.6.17)
     // IFF_ECHO          Echo sent packets (since Linux 2.6.25)
-    pub struct Flags: i16 {
-        const IFF_UP = nix::libc::IFF_UP as i16;
-        const IFF_BROADCAST = nix::libc::IFF_BROADCAST as i16;
-        const IFF_DEBUG = nix::libc::IFF_DEBUG as i16;
-        const IFF_LOOPBACK = nix::libc::IFF_LOOPBACK as i16;
+    pub struct Flags: i32 {
+        const IFF_UP = nix::libc::IFF_UP ;
+        const IFF_BROADCAST = nix::libc::IFF_BROADCAST ;
+        const IFF_DEBUG = nix::libc::IFF_DEBUG ;
+        const IFF_LOOPBACK = nix::libc::IFF_LOOPBACK ;
+        const IFF_POINTOPOINT = nix::libc::IFF_POINTOPOINT;
 
-        const IFF_RUNNING = nix::libc::IFF_RUNNING as i16;
-        const IFF_NOARP = nix::libc::IFF_NOARP as i16;
-        const IFF_PROMISC = nix::libc::IFF_PROMISC as i16;
-        const IFF_NOTRAILERS = nix::libc::IFF_NOTRAILERS as i16;
-        const IFF_ALLMULTI = nix::libc::IFF_ALLMULTI as i16;
-        const IFF_MASTER = nix::libc::IFF_MASTER as i16;
-        const IFF_SLAVE = nix::libc::IFF_SLAVE as i16;
-        const IFF_MULTICAST = nix::libc::IFF_MULTICAST as i16;
-        const IFF_PORTSEL = nix::libc::IFF_PORTSEL as i16;
-        const IFF_AUTOMEDIA = nix::libc::IFF_AUTOMEDIA as i16;
-        const IFF_DYNAMIC = nix::libc::IFF_DYNAMIC as i16;
-        const IFF_LOWER_UP = nix::libc::IFF_LOWER_UP as i16;
-        const IFF_DORMANT = nix::libc::IFF_DORMANT as i16;
-        const IFF_ECHO = nix::libc::IFF_ECHO as i16;
+        const IFF_RUNNING = nix::libc::IFF_RUNNING ;
+        const IFF_NOARP = nix::libc::IFF_NOARP ;
+        const IFF_PROMISC = nix::libc::IFF_PROMISC ;
+        const IFF_NOTRAILERS = nix::libc::IFF_NOTRAILERS ;
+        const IFF_ALLMULTI = nix::libc::IFF_ALLMULTI ;
+        const IFF_MASTER = nix::libc::IFF_MASTER ;
+        const IFF_SLAVE = nix::libc::IFF_SLAVE ;
+        const IFF_MULTICAST = nix::libc::IFF_MULTICAST ;
+        const IFF_PORTSEL = nix::libc::IFF_PORTSEL ;
+        const IFF_AUTOMEDIA = nix::libc::IFF_AUTOMEDIA ;
+        const IFF_DYNAMIC = nix::libc::IFF_DYNAMIC ;
+        const IFF_LOWER_UP = nix::libc::IFF_LOWER_UP ;
+        const IFF_DORMANT = nix::libc::IFF_DORMANT ;
+        const IFF_ECHO = nix::libc::IFF_ECHO ;
     }
 }
 
-impl TryFrom<i16> for Flags {
+impl TryFrom<i32> for Flags {
     type Error = std::io::Error;
 
-    fn try_from(value: i16) -> std::result::Result<Self, Self::Error> {
+    fn try_from(value: i32) -> std::result::Result<Self, Self::Error> {
         Flags::from_bits(value).ok_or_else(|| {
             std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
