@@ -11,3 +11,6 @@ nix = "0.24.1"
 
 [build-dependencies]
 bindgen = "0.60.1"
+
+[dev-dependencies]
+etherparse = "0.12.0"
