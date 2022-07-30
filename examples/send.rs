@@ -2,10 +2,10 @@ use std::io::Write;
 use std::net::{IpAddr, Ipv4Addr, UdpSocket};
 
 use etherparse::PacketBuilder;
-use tidy_tuntap::iface;
+use tidy_tuntap::*;
 
 fn main() {
-    let mut iface = iface::Interface::new("tun10", iface::Mode::Tun, true).unwrap();
+    let mut iface = Interface::without_packet_info("tun10", Mode::Tun).unwrap();
     iface.bring_up().unwrap();
     iface.set_addr(Ipv4Addr::new(10, 10, 10, 1)).unwrap();
     iface.set_brd_addr(Ipv4Addr::new(10, 10, 10, 255)).unwrap();

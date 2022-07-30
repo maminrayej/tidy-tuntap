@@ -1,8 +1,7 @@
-use tidy_tuntap::flags::Flags;
-use tidy_tuntap::iface;
+use tidy_tuntap::*;
 
 fn main() {
-    let iface = iface::Interface::new("tun10", iface::Mode::Tun, true).unwrap();
+    let iface = Interface::without_packet_info("tun10", Mode::Tun).unwrap();
 
     let flags = iface.flags().unwrap();
     let name = iface.name();
