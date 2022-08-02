@@ -1,8 +1,7 @@
 use crate::bindings::*;
 use crate::flags::Flags;
 use crate::ioctl;
-use crate::sockaddr::to_ipv4;
-use crate::sockaddr::to_sockaddr_in;
+use crate::sockaddr::{to_ipv4, to_sockaddr};
 
 use std::io;
 use std::net;
@@ -223,6 +222,8 @@ impl Interface {
 
         unsafe { ioctl::siocgifmtu(self.socket, &mut ifreq as *mut ifreq)? };
 
+        // Safety: Since we issued a ioctl for getting the MTU, it's safe to assume
+        // that if the ioctl was successfull, kernel had set the `ifru_mtu` variant.
         Ok(unsafe { ifreq.ifr_ifru.ifru_mtu })
     }
 
@@ -237,7 +238,7 @@ impl Interface {
     pub fn set_netmask(&self, netmask: net::Ipv4Addr) -> io::Result<()> {
         let mut ifreq = self.new_ifreq();
 
-        ifreq.ifr_ifru.ifru_netmask = unsafe { std::mem::transmute(to_sockaddr_in(netmask)) };
+        ifreq.ifr_ifru.ifru_netmask = to_sockaddr(netmask);
 
         unsafe { ioctl::siocsifnetmask(self.socket, &ifreq as *const ifreq)? };
 
@@ -254,9 +255,9 @@ impl Interface {
 
         unsafe { ioctl::siocgifnetmask(self.socket, &mut ifreq as *mut ifreq)? };
 
-        Ok(to_ipv4(unsafe {
-            std::mem::transmute(ifreq.ifr_ifru.ifru_netmask)
-        }))
+        // Safety: Since we issued a ioctl for getting the netmask, it's safe to assume
+        // that if the ioctl was successfull, kernel had set the `ifru_netmask` variant.
+        Ok(to_ipv4(unsafe { ifreq.ifr_ifru.ifru_netmask }))
     }
 
     /// Sets the IPv4 address of the device.
@@ -270,7 +271,7 @@ impl Interface {
     pub fn set_addr(&self, addr: net::Ipv4Addr) -> io::Result<()> {
         let mut ifreq = self.new_ifreq();
 
-        ifreq.ifr_ifru.ifru_addr = unsafe { std::mem::transmute(to_sockaddr_in(addr)) };
+        ifreq.ifr_ifru.ifru_addr = to_sockaddr(addr);
 
         unsafe { ioctl::siocsifaddr(self.socket, &ifreq as *const ifreq)? };
 
@@ -287,9 +288,9 @@ impl Interface {
 
         unsafe { ioctl::siocgifaddr(self.socket, &mut ifreq as *mut ifreq)? };
 
-        Ok(to_ipv4(unsafe {
-            std::mem::transmute(ifreq.ifr_ifru.ifru_addr)
-        }))
+        // Safety: Since we issued a ioctl for getting the netmask, it's safe to assume
+        // that if the ioctl was successfull, kernel had set the `ifru_netmask` variant.
+        Ok(to_ipv4(unsafe { ifreq.ifr_ifru.ifru_addr }))
     }
 
     /// Sets the broadcast IPv4 address of the device.
@@ -303,7 +304,7 @@ impl Interface {
     pub fn set_brd_addr(&self, brd_addr: net::Ipv4Addr) -> io::Result<()> {
         let mut ifreq = self.new_ifreq();
 
-        ifreq.ifr_ifru.ifru_dstaddr = unsafe { std::mem::transmute(to_sockaddr_in(brd_addr)) };
+        ifreq.ifr_ifru.ifru_broadaddr = to_sockaddr(brd_addr);
 
         unsafe { ioctl::siocsifbrdaddr(self.socket, &ifreq as *const ifreq)? };
 
@@ -320,9 +321,9 @@ impl Interface {
 
         unsafe { ioctl::siocgifbrdaddr(self.socket, &mut ifreq as *mut ifreq)? };
 
-        Ok(to_ipv4(unsafe {
-            std::mem::transmute(ifreq.ifr_ifru.ifru_dstaddr)
-        }))
+        // Safety: Since we issued a ioctl for getting the broadcast address, it's safe to assume
+        // that if the ioctl was successfull, kernel had set the `ifru_broadaddr` variant.
+        Ok(to_ipv4(unsafe { ifreq.ifr_ifru.ifru_broadaddr }))
     }
 
     /// Sets the destination IPv4 address of the device.
@@ -336,7 +337,7 @@ impl Interface {
     pub fn set_dst_addr(&self, dst_addr: net::Ipv4Addr) -> io::Result<()> {
         let mut ifreq = self.new_ifreq();
 
-        ifreq.ifr_ifru.ifru_dstaddr = unsafe { std::mem::transmute(to_sockaddr_in(dst_addr)) };
+        ifreq.ifr_ifru.ifru_dstaddr = to_sockaddr(dst_addr);
 
         unsafe { ioctl::siocsifdstaddr(self.socket, &ifreq as *const ifreq)? };
 
@@ -353,9 +354,9 @@ impl Interface {
 
         unsafe { ioctl::siocgifdstaddr(self.socket, &mut ifreq as *mut ifreq)? };
 
-        Ok(to_ipv4(unsafe {
-            std::mem::transmute(ifreq.ifr_ifru.ifru_dstaddr)
-        }))
+        // Safety: Since we issued a ioctl for getting the destination address, it's safe to assume
+        // that if the ioctl was successfull, kernel had set the `ifru_dstaddr` variant.
+        Ok(to_ipv4(unsafe { ifreq.ifr_ifru.ifru_dstaddr }))
     }
 
     /// Sets the owner of the device.
