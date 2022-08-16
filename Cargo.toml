@@ -14,9 +14,13 @@ keywords = ["tuntap", "tun_tap", "tun", "tap"]
 [dependencies]
 bitflags = "1.3.2"
 nix = "0.24.1"
+thiserror = "1.0.32"
 
 [build-dependencies]
 bindgen = "0.60.1"
 
 [dev-dependencies]
 etherparse = "0.12.0"
+
+[features]
+mq = []

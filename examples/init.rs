@@ -1,11 +1,11 @@
 use tidy_tuntap::*;
 
 fn main() {
-    let iface = Interface::without_packet_info("tun10", Mode::Tun).unwrap();
+    let tun = tun::Tun::without_packet_info("tun10").unwrap();
 
-    let flags = iface.flags().unwrap();
-    let name = iface.name();
+    let flags = tun.flags().unwrap();
+    let name = tun.name();
 
-    assert!(!flags.intersects(Flags::IFF_UP | Flags::IFF_RUNNING));
+    assert!(!flags.intersects(flags::Flags::IFF_UP | flags::Flags::IFF_RUNNING));
     assert_eq!(name, "tun10");
 }

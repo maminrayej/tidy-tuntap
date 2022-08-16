@@ -1,6 +1,6 @@
-// The Rust standard library uses the `std::net::Ipv4Addr` as a representation of 
+// The Rust standard library uses the `std::net::Ipv4Addr` as a representation of
 // ipv4 addresses. But, the kernel uses `sockaddr_in` as a representation of ip addresses.
-// So in order to pass an ip address representation between Rust code and the kernel, 
+// So in order to pass an ip address representation between Rust code and the kernel,
 // we need conversion between these two types. These conversions are provided by the two functions below.
 //
 // NOTE: As far as I understand kernel exposes `sockaddr` struct to represent ipv4 addresses in an
