@@ -22,5 +22,6 @@ mod sockaddr;
 pub mod error;
 pub mod flags;
 pub mod iface;
+pub mod dev;
 pub mod tap;
 pub mod tun;

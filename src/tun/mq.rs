@@ -6,12 +6,12 @@ use std::{ops, sync};
 use crate::error::Result;
 use crate::iface;
 use crate::ioctl;
-use crate::tun::Tun;
+use crate::tun;
 
-pub struct MQTun(Tun);
+pub struct MQTun(tun::Tun);
 
 impl ops::Deref for MQTun {
-    type Target = Tun;
+    type Target = tun::Tun;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -23,7 +23,7 @@ impl MQTun {
         let iface = sync::Arc::new(iface::Interface::new(iface_params)?);
 
         let tuns: Result<Vec<MQTun>> = (0..iface.files.len())
-            .map(|fd_index| Tun::new(iface.clone(), fd_index).map(MQTun))
+            .map(|fd_index| tun::Tun::new(iface.clone(), fd_index).map(MQTun))
             .collect();
 
         tuns

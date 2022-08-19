@@ -2,16 +2,16 @@ use std::sync;
 
 use crate::error::Result;
 use crate::iface;
-use crate::tap::Tap;
+use crate::tap;
 
-pub struct MQTap(Vec<Tap>);
+pub struct MQTap(Vec<tap::Tap>);
 
 impl MQTap {
     fn new(iface_params: iface::InterfaceParams) -> Result<MQTap> {
         let iface = sync::Arc::new(iface::Interface::new(iface_params)?);
 
-        let tuns: Result<Vec<Tap>> = (0..iface.files.len())
-            .map(|fd_index| Tap::new(iface.clone(), fd_index))
+        let tuns: Result<Vec<tap::Tap>> = (0..iface.files.len())
+            .map(|fd_index| tap::Tap::new(iface.clone(), fd_index))
             .collect();
 
         Ok(MQTap(tuns?))
