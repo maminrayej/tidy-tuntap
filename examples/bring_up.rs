@@ -1,10 +1,11 @@
 use tidy_tuntap::*;
 
 fn main() {
-    let iface = Interface::without_packet_info("tun10", Mode::Tun).unwrap();
-    iface.bring_up().unwrap();
+    let tun = tun::Tun::without_packet_info("tun10").unwrap();
 
-    let flags = iface.flags().unwrap();
+    tun.bring_up().unwrap();
 
-    assert!(flags.contains(Flags::IFF_UP | Flags::IFF_RUNNING));
+    let flags = tun.flags().unwrap();
+
+    assert!(flags.contains(flags::Flags::IFF_UP | flags::Flags::IFF_RUNNING));
 }

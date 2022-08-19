@@ -3,9 +3,9 @@ use std::net::Ipv4Addr;
 use tidy_tuntap::*;
 
 fn main() {
-    let iface = Interface::without_packet_info("tun10", Mode::Tun).unwrap();
+    let tun = tun::Tun::without_packet_info("tun10").unwrap();
 
-    iface.set_addr(Ipv4Addr::new(10, 10, 10, 10)).unwrap();
+    tun.set_addr(Ipv4Addr::new(10, 10, 10, 10)).unwrap();
 
-    assert_eq!(iface.get_addr().unwrap(), Ipv4Addr::new(10, 10, 10, 10));
+    assert_eq!(tun.get_addr().unwrap(), Ipv4Addr::new(10, 10, 10, 10));
 }

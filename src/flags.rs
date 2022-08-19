@@ -65,14 +65,9 @@ bitflags::bitflags! {
 // The kernel returns these flags as an `i32`. This impl tries to convert that
 // to a more ergonomic struct provided above.
 impl TryFrom<i32> for Flags {
-    type Error = std::io::Error;
+    type Error = crate::error::Error;
 
-    fn try_from(value: i32) -> std::result::Result<Self, Self::Error> {
-        Flags::from_bits(value).ok_or_else(|| {
-            std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                "Failed to create Flags from the data returned by the kernel",
-            )
-        })
+    fn try_from(value: i32) -> Result<Self, Self::Error> {
+        Flags::from_bits(value).ok_or(crate::error::Error::ConversionError(value))
     }
 }

@@ -1,7 +1,7 @@
 //! tidy-tuntap is a Rust wrapper for working with TUN/TAP devices in Linux.
 //!
 //! Creating, modifying, reading from, and writing to a TUN/TAP device can be done using the provided
-//! [Interface](`crate::Interface`) struct. The device will be removed alongside
+//! [Interface](`crate::iface::Interface`) struct. The device will be removed alongside
 //! with all the added routings from the system when the created `Interface` is dropped.
 //!
 //! For more info: [tuntap.txt](https://www.kernel.org/doc/Documentation/networking/tuntap.txt)
@@ -16,18 +16,12 @@
 //  * man netdevice
 mod bindings;
 
-// Provides ergonomics to work with flags needed to interact with the kernel.
-mod flags;
-
-// Contains the struct representing the TUN/TAP device.
-mod iface;
-
-// Contains different ioctls needed to interact with the TUN/TAP device.
 mod ioctl;
-
-// Contains helper functions to translate between what the kernel uses to represent addresses and
-// what the Rust standard library uses.
 mod sockaddr;
 
-pub use flags::Flags;
-pub use iface::{Interface, Mode};
+pub mod error;
+pub mod flags;
+pub mod iface;
+pub mod dev;
+pub mod tap;
+pub mod tun;

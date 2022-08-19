@@ -5,13 +5,11 @@ use etherparse::{IpHeader, PacketHeaders, TransportHeader};
 use tidy_tuntap::*;
 
 fn main() {
-    let mut iface = Interface::without_packet_info("tun10", Mode::Tun).unwrap();
-
-    iface.bring_up().unwrap();
-    iface.set_addr(Ipv4Addr::new(10, 10, 10, 1)).unwrap();
-    iface.set_brd_addr(Ipv4Addr::new(10, 10, 10, 255)).unwrap();
-    iface.set_netmask(Ipv4Addr::new(255, 255, 255, 0)).unwrap();
-    iface.set_owner(1000).unwrap();
+    let mut tun = tun::Tun::without_packet_info("tun10").unwrap();
+    tun.bring_up().unwrap();
+    tun.set_addr(Ipv4Addr::new(10, 10, 10, 1)).unwrap();
+    tun.set_brd_addr(Ipv4Addr::new(10, 10, 10, 255)).unwrap();
+    tun.set_netmask(Ipv4Addr::new(255, 255, 255, 0)).unwrap();
 
     let data = [1; 10];
     let udp_socket = UdpSocket::bind("10.10.10.1:33333").unwrap();
@@ -19,7 +17,7 @@ fn main() {
 
     let mut buf = [0; 1500];
     loop {
-        let bytes_read = iface.read(&mut buf).unwrap();
+        let bytes_read = tun.read(&mut buf).unwrap();
 
         if let Ok(packet) = PacketHeaders::from_ip_slice(&buf[..bytes_read]) {
             let ip_h = packet.ip.unwrap();

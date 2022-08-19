@@ -5,12 +5,11 @@ use etherparse::PacketBuilder;
 use tidy_tuntap::*;
 
 fn main() {
-    let mut iface = Interface::without_packet_info("tun10", Mode::Tun).unwrap();
-    iface.bring_up().unwrap();
-    iface.set_addr(Ipv4Addr::new(10, 10, 10, 1)).unwrap();
-    iface.set_brd_addr(Ipv4Addr::new(10, 10, 10, 255)).unwrap();
-    iface.set_netmask(Ipv4Addr::new(255, 255, 255, 0)).unwrap();
-    iface.set_owner(1000).unwrap();
+    let mut tun = tun::Tun::without_packet_info("tun10").unwrap();
+    tun.bring_up().unwrap();
+    tun.set_addr(Ipv4Addr::new(10, 10, 10, 1)).unwrap();
+    tun.set_brd_addr(Ipv4Addr::new(10, 10, 10, 255)).unwrap();
+    tun.set_netmask(Ipv4Addr::new(255, 255, 255, 0)).unwrap();
 
     let socket = UdpSocket::bind("10.10.10.1:2424").unwrap();
 
@@ -19,7 +18,7 @@ fn main() {
     let mut packet = Vec::<u8>::with_capacity(builder.size(data.len()));
     builder.write(&mut packet, &data).unwrap();
 
-    let _ = iface.write(&packet).unwrap();
+    let _ = tun.write(&packet).unwrap();
 
     let mut buf = [0; 50];
     let (bytes_read, source) = socket.recv_from(&mut buf).unwrap();
