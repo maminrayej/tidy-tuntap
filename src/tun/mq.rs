@@ -1,8 +1,7 @@
-use crate::bindings::*;
-
 use std::os::unix::prelude::AsRawFd;
 use std::{ops, sync};
 
+use crate::bindings::*;
 use crate::error::Result;
 use crate::iface;
 use crate::ioctl;
