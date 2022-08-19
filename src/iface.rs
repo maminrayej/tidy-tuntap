@@ -373,7 +373,7 @@ impl Interface {
     //    }
 
     // Returns an empty ifreq with the same name of this device.
-    fn new_ifreq(&self) -> ifreq {
+    pub(crate) fn new_ifreq(&self) -> ifreq {
         let mut ifreq: ifreq = unsafe { std::mem::zeroed() };
 
         ifreq.ifr_ifrn.ifrn_name = self.name_raw;

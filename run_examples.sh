@@ -3,7 +3,7 @@
 # Exit if any command failed.
 set -e
 
-cargo build --examples
+cargo build --examples --all-features
 
 # Cargo builds each example and places it under the examples folder.
 # If the example is called `my_example.rs`, the generated executable will be named `my_example`.

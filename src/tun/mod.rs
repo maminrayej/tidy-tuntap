@@ -4,6 +4,7 @@ mod mq;
 #[cfg(feature = "mq")]
 pub use mq::*;
 
+use std::os::unix::prelude::{AsRawFd, RawFd};
 use std::{io, sync};
 
 use crate::error::Result;
@@ -12,7 +13,7 @@ use crate::iface;
 pub struct Tun {
     iface: sync::Arc<iface::Interface>,
 
-    // Dropping this file hence closing it is the responsibility of the `iface`.
+    // This file will be closed by the `iface` hence we wrap it in manually drop.
     file: std::mem::ManuallyDrop<std::fs::File>,
 }
 
@@ -63,6 +64,14 @@ impl Tun {
     pub fn iface(&self) -> &iface::Interface {
         self.iface.as_ref()
     }
+
+    pub fn send(&self, buf: &[u8]) -> Result<usize> {
+        Ok(nix::unistd::write(self.file.as_raw_fd(), buf)?)
+    }
+
+    pub fn recv(&self, buf: &mut [u8]) -> Result<usize> {
+        Ok(nix::unistd::read(self.file.as_raw_fd(), buf)?)
+    }
 }
 
 impl io::Read for Tun {
@@ -78,5 +87,11 @@ impl io::Write for Tun {
 
     fn flush(&mut self) -> io::Result<()> {
         self.file.flush()
+    }
+}
+
+impl AsRawFd for Tun {
+    fn as_raw_fd(&self) -> RawFd {
+        self.file.as_raw_fd()
     }
 }

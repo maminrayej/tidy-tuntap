@@ -29,6 +29,8 @@ nix::ioctl_write_int!(tunsetpersist, 'T', 203);
 nix::ioctl_write_int!(tunsetowner, 'T', 204);
 nix::ioctl_write_int!(tunsetgroup, 'T', 206);
 
+nix::ioctl_write_int!(tunsetqueue, 'T', 217);
+
 // Can be used to set and get the active flags of the device.
 nix::ioctl_write_ptr_bad!(siocsifflags, nix::libc::SIOCSIFFLAGS, ifreq);
 nix::ioctl_read_bad!(siocgifflags, nix::libc::SIOCGIFFLAGS, ifreq);
