@@ -16,3 +16,12 @@ pub enum Error {
     #[error("Failed to create Flags from the data returned by the kernel: {0:b}")]
     ConversionError(i32),
 }
+
+impl From<Error> for io::Error {
+    fn from(err: Error) -> Self {
+        match err {
+            Error::IOError(io_err) => io_err,
+            _ => io::Error::new(io::ErrorKind::Other, err),
+        }
+    }
+}

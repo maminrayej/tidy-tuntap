@@ -13,8 +13,10 @@ keywords = ["tuntap", "tun_tap", "tun", "tap"]
 
 [dependencies]
 bitflags = "1.3.2"
+futures = "0.3.23"
 nix = "0.25.0"
 thiserror = "1.0.32"
+tokio = { version = "1.20.1", features = ["net"] }
 
 [build-dependencies]
 bindgen = "0.60.1"
@@ -24,5 +26,6 @@ etherparse = "0.12.0"
 nix = "0.25.0"
 
 [features]
-all = ["mq"]
+all = ["mq", "tokio"]
 mq = []
+tokio = []

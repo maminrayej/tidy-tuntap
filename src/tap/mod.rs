@@ -3,6 +3,11 @@ mod mq;
 #[cfg(feature = "mq")]
 pub use mq::*;
 
+#[cfg(feature = "tokio")]
+mod async_tap;
+#[cfg(feature = "tokio")]
+pub use async_tap::*;
+
 use std::{io, sync};
 
 use crate::dev;

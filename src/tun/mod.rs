@@ -3,6 +3,11 @@ mod mq;
 #[cfg(feature = "mq")]
 pub use mq::*;
 
+#[cfg(feature = "tokio")]
+mod async_tun;
+#[cfg(feature = "tokio")]
+pub use async_tun::*;
+
 use std::{io, sync};
 
 use crate::error::Result;
