@@ -19,9 +19,9 @@ mod bindings;
 mod ioctl;
 mod sockaddr;
 
+pub mod dev;
 pub mod error;
 pub mod flags;
 pub mod iface;
-pub mod dev;
 pub mod tap;
 pub mod tun;

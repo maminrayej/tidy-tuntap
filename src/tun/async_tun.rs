@@ -75,10 +75,15 @@ impl AsyncRead for AsyncTun {
         let self_mut = self.get_mut();
 
         loop {
-            let mut guard = futures::ready!(self_mut.0.poll_write_ready_mut(cx))?;
+            let mut guard = futures::ready!(self_mut.0.poll_read_ready_mut(cx))?;
 
-            match guard.try_io(|inner| inner.get_mut().read(buf.initialize_unfilled())) {
-                Ok(_result) => return Poll::Ready(Ok(())),
+            match guard.try_io(|inner| {
+                let read = inner.get_mut().read(buf.initialize_unfilled())?;
+                buf.advance(read);
+
+                Ok(read)
+            }) {
+                Ok(result) => return Poll::Ready(result.map(|_| ())),
                 Err(_would_block) => continue,
             }
         }
