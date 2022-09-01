@@ -8,7 +8,7 @@ mod async_tun;
 #[cfg(feature = "tokio")]
 pub use async_tun::*;
 
-use std::{io, sync};
+use std::sync;
 
 use crate::error::Result;
 use crate::{dev, iface};
@@ -20,6 +20,12 @@ impl std::ops::Deref for Tun {
 
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+impl std::ops::DerefMut for Tun {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }
 
@@ -46,21 +52,5 @@ impl Tun {
             non_blocking: false,
             no_packet_info: false,
         })?))
-    }
-}
-
-impl io::Read for Tun {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        self.0.read(buf)
-    }
-}
-
-impl io::Write for Tun {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        self.0.write(buf)
-    }
-
-    fn flush(&mut self) -> io::Result<()> {
-        self.0.flush()
     }
 }

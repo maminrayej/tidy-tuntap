@@ -1,3 +1,8 @@
+#[cfg(feature = "tokio")]
+mod async_dev;
+#[cfg(feature = "tokio")]
+pub use async_dev::*;
+
 use std::os::unix::prelude::{AsRawFd, RawFd};
 use std::{fs, io, mem, sync};
 
@@ -34,26 +39,6 @@ impl Dev {
 
         Dev::new(sync::Arc::new(iface), 0)
     }
-
-    //fn without_packet_info(name: &str) -> Result<Self> {
-    //    Self::from_params(iface::InterfaceParams {
-    //        name,
-    //        mode: iface::Mode::Tun,
-    //        fd_count: 1,
-    //        non_blocking: false,
-    //        no_packet_info: true,
-    //    })
-    //}
-
-    //fn with_packet_info(name: &str) -> Result<Self> {
-    //    Self::from_params(iface::InterfaceParams {
-    //        name,
-    //        mode: iface::Mode::Tun,
-    //        fd_count: 1,
-    //        non_blocking: false,
-    //        no_packet_info: false,
-    //    })
-    //}
 
     pub fn iface(&self) -> &iface::Interface {
         self.iface.as_ref()

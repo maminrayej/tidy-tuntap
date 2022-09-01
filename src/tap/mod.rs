@@ -8,7 +8,7 @@ mod async_tap;
 #[cfg(feature = "tokio")]
 pub use async_tap::*;
 
-use std::{io, sync};
+use std::sync;
 
 use crate::dev;
 use crate::error::Result;
@@ -21,6 +21,12 @@ impl std::ops::Deref for Tap {
 
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+impl std::ops::DerefMut for Tap {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }
 
@@ -47,21 +53,5 @@ impl Tap {
             non_blocking: false,
             no_packet_info: false,
         })?))
-    }
-}
-
-impl io::Read for Tap {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        self.0.read(buf)
-    }
-}
-
-impl io::Write for Tap {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        self.0.write(buf)
-    }
-
-    fn flush(&mut self) -> io::Result<()> {
-        self.0.flush()
     }
 }
