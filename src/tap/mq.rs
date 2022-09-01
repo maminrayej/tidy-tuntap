@@ -7,6 +7,7 @@ use crate::iface;
 use crate::ioctl;
 use crate::tap;
 
+#[cfg_attr(docsrs, doc(cfg(feature = "mq")))]
 pub struct MQTap(tap::Tap);
 
 impl ops::Deref for MQTap {

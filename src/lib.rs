@@ -1,3 +1,5 @@
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
 //! tidy-tuntap is a Rust wrapper for working with TUN/TAP devices in Linux.
 //!
 //! Creating, modifying, reading from, and writing to a TUN/TAP device can be done using the provided

@@ -7,6 +7,7 @@ use crate::iface;
 use crate::ioctl;
 use crate::tun;
 
+#[cfg_attr(docsrs, doc(cfg(feature = "mq")))]
 pub struct MQTun(tun::Tun);
 
 impl ops::Deref for MQTun {

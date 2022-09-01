@@ -8,6 +8,7 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use crate::error::Result;
 use crate::{dev, iface};
 
+#[cfg_attr(docsrs, doc(cfg(feature = "tokio")))]
 pub struct AsyncTap(AsyncFd<dev::Dev>);
 
 impl std::ops::Deref for AsyncTap {
