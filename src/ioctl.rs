@@ -37,6 +37,7 @@ nix::ioctl_read_bad!(siocgifflags, nix::libc::SIOCGIFFLAGS, bindings::ifreq);
 
 // Can be used to set and get the ip address of the device.
 nix::ioctl_write_ptr_bad!(siocsifaddr, nix::libc::SIOCSIFADDR, bindings::ifreq);
+nix::ioctl_write_ptr_bad!(siocsifaddr6, nix::libc::SIOCSIFADDR, bindings::in6_ifreq);
 nix::ioctl_read_bad!(siocgifaddr, nix::libc::SIOCGIFADDR, bindings::ifreq);
 
 // Can be used to set and get the MTU of the device.
@@ -61,5 +62,4 @@ nix::ioctl_read_bad!(siocgifmetric, nix::libc::SIOCGIFMETRIC, bindings::ifreq);
 
 // Can be used to get the interface index.
 nix::ioctl_read_bad!(siocgifindex, bindings::SIOCGIFINDEX, bindings::ifreq);
-
-nix::ioctl_write_ptr_bad!(siocsifaddr6, nix::libc::SIOCSIFADDR, bindings::in6_ifreq);
+nix::ioctl_write_ptr_bad!(siocdifaddr6, bindings::SIOCDIFADDR, bindings::in6_ifreq);

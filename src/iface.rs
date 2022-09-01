@@ -6,6 +6,7 @@ use crate::sockaddr::{to_ipv4, to_sockaddr};
 
 use std::net;
 use std::os::unix::prelude::{AsRawFd, OpenOptionsExt, RawFd};
+use std::str::FromStr;
 
 /// Indicates whether to create a TUN device or a TAP device.
 pub enum Mode {
@@ -278,6 +279,24 @@ impl Interface {
             .collect())
     }
 
+    pub fn del_ipv6_addr(&self, addr: net::Ipv6Addr) -> Result<()> {
+        let ifindex = self.get_index()?;
+
+        let in6_ifreq = in6_ifreq {
+            ifr6_addr: nix::libc::in6_addr {
+                s6_addr: addr.octets(),
+            },
+            ifr6_prefixlen: 64,
+            ifr6_ifindex: ifindex,
+        };
+
+        unsafe {
+            ioctl::siocdifaddr6(self.inet6_socket, &in6_ifreq as *const in6_ifreq)?;
+        }
+
+        Ok(())
+    }
+
     /// Sets the IPv4 address of the device.
     ///
     /// # Arguments
@@ -309,6 +328,16 @@ impl Interface {
         // Safety: Since we issued a ioctl for getting the netmask, it's safe to assume
         // that if the ioctl was successfull, kernel had set the `ifru_netmask` variant.
         Ok(to_ipv4(unsafe { ifreq.ifr_ifru.ifru_addr }))
+    }
+
+    pub fn del_addr(&self) -> Result<()> {
+        let mut ifreq = self.new_ifreq();
+
+        ifreq.ifr_ifru.ifru_addr = to_sockaddr(net::Ipv4Addr::from_str("0.0.0.0").unwrap());
+
+        unsafe { ioctl::siocsifaddr(self.socket, &ifreq as *const ifreq)? };
+
+        Ok(())
     }
 
     /// Sets the broadcast IPv4 address of the device.
