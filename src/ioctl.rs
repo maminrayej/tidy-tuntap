@@ -12,7 +12,7 @@
 // But when calling the bad ioctls, we use the `ioctl_write_ptr_bad` and pass the pointer to our
 // struct.
 
-use crate::bindings::ifreq;
+use crate::bindings;
 
 // Can be used to set the flags and name of the TUN/TAP device.
 // The flag can indicate whether the device is a TUN device or a TAP device.
@@ -32,29 +32,34 @@ nix::ioctl_write_int!(tunsetgroup, 'T', 206);
 nix::ioctl_write_int!(tunsetqueue, 'T', 217);
 
 // Can be used to set and get the active flags of the device.
-nix::ioctl_write_ptr_bad!(siocsifflags, nix::libc::SIOCSIFFLAGS, ifreq);
-nix::ioctl_read_bad!(siocgifflags, nix::libc::SIOCGIFFLAGS, ifreq);
+nix::ioctl_write_ptr_bad!(siocsifflags, nix::libc::SIOCSIFFLAGS, bindings::ifreq);
+nix::ioctl_read_bad!(siocgifflags, nix::libc::SIOCGIFFLAGS, bindings::ifreq);
 
 // Can be used to set and get the ip address of the device.
-nix::ioctl_write_ptr_bad!(siocsifaddr, nix::libc::SIOCSIFADDR, ifreq);
-nix::ioctl_read_bad!(siocgifaddr, nix::libc::SIOCGIFADDR, ifreq);
+nix::ioctl_write_ptr_bad!(siocsifaddr, nix::libc::SIOCSIFADDR, bindings::ifreq);
+nix::ioctl_read_bad!(siocgifaddr, nix::libc::SIOCGIFADDR, bindings::ifreq);
 
 // Can be used to set and get the MTU of the device.
-nix::ioctl_write_ptr_bad!(siocsifmtu, nix::libc::SIOCSIFMTU, ifreq);
-nix::ioctl_read_bad!(siocgifmtu, nix::libc::SIOCGIFMTU, ifreq);
+nix::ioctl_write_ptr_bad!(siocsifmtu, nix::libc::SIOCSIFMTU, bindings::ifreq);
+nix::ioctl_read_bad!(siocgifmtu, nix::libc::SIOCGIFMTU, bindings::ifreq);
 
 // Can be used to set and get the netmask of the device.
-nix::ioctl_write_ptr_bad!(siocsifnetmask, nix::libc::SIOCSIFNETMASK, ifreq);
-nix::ioctl_read_bad!(siocgifnetmask, nix::libc::SIOCGIFNETMASK, ifreq);
+nix::ioctl_write_ptr_bad!(siocsifnetmask, nix::libc::SIOCSIFNETMASK, bindings::ifreq);
+nix::ioctl_read_bad!(siocgifnetmask, nix::libc::SIOCGIFNETMASK, bindings::ifreq);
 
 // Can be used to set and get the destination address of a point to point device.
-nix::ioctl_write_ptr_bad!(siocsifdstaddr, nix::libc::SIOCSIFDSTADDR, ifreq);
-nix::ioctl_read_bad!(siocgifdstaddr, nix::libc::SIOCGIFDSTADDR, ifreq);
+nix::ioctl_write_ptr_bad!(siocsifdstaddr, nix::libc::SIOCSIFDSTADDR, bindings::ifreq);
+nix::ioctl_read_bad!(siocgifdstaddr, nix::libc::SIOCGIFDSTADDR, bindings::ifreq);
 
 // Can be used to set and get the broadcast address of the device.
-nix::ioctl_write_ptr_bad!(siocsifbrdaddr, nix::libc::SIOCSIFBRDADDR, ifreq);
-nix::ioctl_read_bad!(siocgifbrdaddr, nix::libc::SIOCGIFBRDADDR, ifreq);
+nix::ioctl_write_ptr_bad!(siocsifbrdaddr, nix::libc::SIOCSIFBRDADDR, bindings::ifreq);
+nix::ioctl_read_bad!(siocgifbrdaddr, nix::libc::SIOCGIFBRDADDR, bindings::ifreq);
 
 // Can be used to set and get the metric of the device.
-nix::ioctl_write_ptr_bad!(siocsifmetric, nix::libc::SIOCSIFMETRIC, ifreq);
-nix::ioctl_read_bad!(siocgifmetric, nix::libc::SIOCGIFMETRIC, ifreq);
+nix::ioctl_write_ptr_bad!(siocsifmetric, nix::libc::SIOCSIFMETRIC, bindings::ifreq);
+nix::ioctl_read_bad!(siocgifmetric, nix::libc::SIOCGIFMETRIC, bindings::ifreq);
+
+// Can be used to get the interface index.
+nix::ioctl_read_bad!(siocgifindex, bindings::SIOCGIFINDEX, bindings::ifreq);
+
+nix::ioctl_write_ptr_bad!(siocsifaddr6, nix::libc::SIOCSIFADDR, bindings::in6_ifreq);
