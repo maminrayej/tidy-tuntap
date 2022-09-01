@@ -58,6 +58,7 @@ pub struct Interface {
     //
     // NOTE: This socket must be manually closed when this struct gets dropped.
     socket: RawFd,
+    inet6_socket: RawFd,
 }
 
 impl Interface {
@@ -123,11 +124,18 @@ impl Interface {
             nix::sys::socket::SockFlag::empty(),
             None,
         )?;
+        let inet6_socket = nix::sys::socket::socket(
+            nix::sys::socket::AddressFamily::Inet6,
+            nix::sys::socket::SockType::Datagram,
+            nix::sys::socket::SockFlag::empty(),
+            None,
+        )?;
 
         Ok(Interface {
             name_raw,
             files,
             socket,
+            inet6_socket,
         })
     }
 
@@ -231,6 +239,43 @@ impl Interface {
         // Safety: Since we issued a ioctl for getting the netmask, it's safe to assume
         // that if the ioctl was successfull, kernel had set the `ifru_netmask` variant.
         Ok(to_ipv4(unsafe { ifreq.ifr_ifru.ifru_netmask }))
+    }
+
+    pub fn get_index(&self) -> Result<i32> {
+        let mut ifreq = self.new_ifreq();
+
+        unsafe { ioctl::siocgifindex(self.socket, &mut ifreq as *mut ifreq)? };
+
+        Ok(unsafe { ifreq.ifr_ifru.ifru_ivalue })
+    }
+
+    pub fn set_ipv6_addr(&self, addr: net::Ipv6Addr) -> Result<()> {
+        let ifindex = self.get_index()?;
+
+        let in6_ifreq = in6_ifreq {
+            ifr6_addr: nix::libc::in6_addr {
+                s6_addr: addr.octets(),
+            },
+            ifr6_prefixlen: 64,
+            ifr6_ifindex: ifindex,
+        };
+
+        unsafe {
+            ioctl::siocsifaddr6(self.inet6_socket, &in6_ifreq as *const in6_ifreq)?;
+        }
+
+        Ok(())
+    }
+
+    pub fn get_ipv6_addrs(&self) -> Result<Vec<net::Ipv6Addr>> {
+        Ok(nix::ifaddrs::getifaddrs()?
+            .filter(|iface| iface.interface_name == self.name())
+            .filter_map(|iface| {
+                iface
+                    .address
+                    .and_then(|addr| addr.as_sockaddr_in6().map(|in6_addr| in6_addr.ip()))
+            })
+            .collect())
     }
 
     /// Sets the IPv4 address of the device.
@@ -421,5 +466,6 @@ impl Interface {
 impl Drop for Interface {
     fn drop(&mut self) {
         nix::unistd::close(self.socket).expect("Failed to close the socket");
+        nix::unistd::close(self.inet6_socket).expect("Failed to close the socket");
     }
 }
