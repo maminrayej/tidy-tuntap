@@ -1,3 +1,5 @@
+use crate::error;
+
 bitflags::bitflags! {
     /// Bitflags used by the kernel to indicate the active flag word of the device.
     ///
@@ -65,9 +67,9 @@ bitflags::bitflags! {
 // The kernel returns these flags as an `i32`. This impl tries to convert that
 // to a more ergonomic struct provided above.
 impl TryFrom<i32> for Flags {
-    type Error = crate::error::Error;
+    type Error = error::Error;
 
     fn try_from(value: i32) -> Result<Self, Self::Error> {
-        Flags::from_bits(value).ok_or(crate::error::Error::ConversionError(value))
+        Flags::from_bits(value).ok_or(error::Error::ConversionError(value))
     }
 }

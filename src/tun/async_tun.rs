@@ -1,6 +1,6 @@
-use crate::error::Result;
-use crate::{dev, iface};
+use crate::{dev, error, iface};
 
+/// A non-blocking TUN interface.
 #[cfg_attr(docsrs, doc(cfg(feature = "tokio")))]
 pub struct AsyncTun(dev::AsyncDev);
 
@@ -19,7 +19,15 @@ impl std::ops::DerefMut for AsyncTun {
 }
 
 impl AsyncTun {
-    pub fn without_packet_info(name: &str) -> Result<AsyncTun> {
+    /// Creates a non-blocking TUN interface without the packet info with the specified `name`.
+    ///
+    /// # Arguments
+    /// * `name`: Suggested name of the interface.
+    ///
+    /// # Returns
+    /// * `Ok`: Containing the TUN interface if successful.
+    /// * `Err`: Otherwise.
+    pub fn without_packet_info(name: &str) -> error::Result<AsyncTun> {
         Ok(AsyncTun(dev::AsyncDev::from_params(
             iface::InterfaceParams {
                 name,
@@ -31,7 +39,15 @@ impl AsyncTun {
         )?))
     }
 
-    pub fn with_packet_info(name: &str) -> Result<AsyncTun> {
+    /// Creates a non-blocking TUN interface with the packet info with the specified `name`.
+    ///
+    /// # Arguments
+    /// * `name`: Suggested name of the interface.
+    ///
+    /// # Returns
+    /// * `Ok`: Containing the TUN interface if successful.
+    /// * `Err`: Otherwise.
+    pub fn with_packet_info(name: &str) -> error::Result<AsyncTun> {
         Ok(AsyncTun(dev::AsyncDev::from_params(
             iface::InterfaceParams {
                 name,

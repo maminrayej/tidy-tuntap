@@ -8,11 +8,9 @@ mod async_tun;
 #[cfg(feature = "tokio")]
 pub use async_tun::*;
 
-use std::sync;
+use crate::{dev, error, iface};
 
-use crate::error::Result;
-use crate::{dev, iface};
-
+/// A blocking TUN interface.
 pub struct Tun(dev::Dev);
 
 impl std::ops::Deref for Tun {
@@ -30,11 +28,15 @@ impl std::ops::DerefMut for Tun {
 }
 
 impl Tun {
-    pub(crate) fn new(iface: sync::Arc<iface::Interface>, fd_index: usize) -> Result<Self> {
-        Ok(Tun(dev::Dev::new(iface, fd_index)?))
-    }
-
-    pub fn without_packet_info(name: &str) -> Result<Tun> {
+    /// Creates a blocking TUN interface without the packet info with the specified `name`.
+    ///
+    /// # Arguments
+    /// * `name`: Suggested name of the interface.
+    ///
+    /// # Returns
+    /// * `Ok`: Containing the TUN device if successful.
+    /// * `Err`: Otherwise.
+    pub fn without_packet_info(name: &str) -> error::Result<Tun> {
         Ok(Tun(dev::Dev::from_params(iface::InterfaceParams {
             name,
             mode: iface::Mode::Tun,
@@ -44,7 +46,15 @@ impl Tun {
         })?))
     }
 
-    pub fn with_packet_info(name: &str) -> Result<Tun> {
+    /// Creates a blocking TUN interface with the packet info with the specified `name`.
+    ///
+    /// # Arguments
+    /// * `name`: Suggested name of the interface.
+    ///
+    /// # Returns
+    /// * `Ok`: Containing the TUN device if successful.
+    /// * `Err`: Otherwise.
+    pub fn with_packet_info(name: &str) -> error::Result<Tun> {
         Ok(Tun(dev::Dev::from_params(iface::InterfaceParams {
             name,
             mode: iface::Mode::Tun,

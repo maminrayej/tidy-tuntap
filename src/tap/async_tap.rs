@@ -1,6 +1,6 @@
-use crate::error::Result;
-use crate::{dev, iface};
+use crate::{dev, error, iface};
 
+/// A non-blocking TAP interface.
 #[cfg_attr(docsrs, doc(cfg(feature = "tokio")))]
 pub struct AsyncTap(dev::AsyncDev);
 
@@ -19,7 +19,15 @@ impl std::ops::DerefMut for AsyncTap {
 }
 
 impl AsyncTap {
-    pub fn without_packet_info(name: &str) -> Result<AsyncTap> {
+    /// Creates a non-blocking TAP interface without the packet info with the specified `name`.
+    ///
+    /// # Arguments
+    /// * `name`: Suggested name of the interface.
+    ///
+    /// # Returns
+    /// * `Ok`: Containing the TAP interface if successful.
+    /// * `Err`: Otherwise.
+    pub fn without_packet_info(name: &str) -> error::Result<AsyncTap> {
         Ok(AsyncTap(dev::AsyncDev::from_params(
             iface::InterfaceParams {
                 name,
@@ -31,7 +39,15 @@ impl AsyncTap {
         )?))
     }
 
-    pub fn with_packet_info(name: &str) -> Result<AsyncTap> {
+    /// Creates a non-blocking TAP interface with the packet info with the specified `name`.
+    ///
+    /// # Arguments
+    /// * `name`: Suggested name of the interface.
+    ///
+    /// # Returns
+    /// * `Ok`: Containing the TAP interface if successful.
+    /// * `Err`: Otherwise.
+    pub fn with_packet_info(name: &str) -> error::Result<AsyncTap> {
         Ok(AsyncTap(dev::AsyncDev::from_params(
             iface::InterfaceParams {
                 name,

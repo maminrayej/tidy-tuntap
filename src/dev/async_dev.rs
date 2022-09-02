@@ -5,9 +5,9 @@ use std::task::{Context, Poll};
 use tokio::io::unix::AsyncFd;
 use tokio::io::{AsyncRead, AsyncWrite};
 
-use crate::error::Result;
-use crate::{dev, iface};
+use crate::{dev, error, iface};
 
+/// A non-blocking device representing a TUN/TAP device.
 #[cfg_attr(docsrs, doc(cfg(feature = "tokio")))]
 pub struct AsyncDev(AsyncFd<dev::Dev>);
 
@@ -20,13 +20,48 @@ impl std::ops::Deref for AsyncDev {
 }
 
 impl AsyncDev {
-    pub(crate) fn from_params(iface_params: iface::InterfaceParams) -> Result<Self> {
+    // Creates a new `AsyncDev` with the specified `iface_params`.
+    pub(crate) fn from_params(iface_params: iface::InterfaceParams) -> error::Result<Self> {
         Ok(AsyncDev(AsyncFd::new(dev::Dev::from_params(
             iface_params,
         )?)?))
     }
 
-    pub async fn recv(&self, buf: &mut [u8]) -> Result<usize> {
+    /// Tries to read data from the device and fill the buffer `buf`.
+    ///
+    /// # Arguments
+    /// * `buf`: Buffer to be filled with the data read from the device.
+    ///
+    /// # Returns
+    /// * `Ok`: Containing the number of bytes read from the device.
+    /// * `Err`: If the device was not ready to be read(a `WOULDBLOCK` err), or some other error
+    /// occurred.
+    pub fn try_recv(&self, buf: &mut [u8]) -> error::Result<usize> {
+        self.0.get_ref().recv(buf)
+    }
+
+    /// Tries to write data from the buf to the device.
+    ///
+    /// # Arguments
+    /// * `buf`: Data to be written to the device.
+    ///
+    /// # Returns
+    /// * `Ok`: Containing the number of bytes written to the device.
+    /// * `Err`: If the device was not ready to be written to(a `WOULDBLOCK` err), or some other error
+    /// occurred.
+    pub fn try_send(&self, buf: &[u8]) -> error::Result<usize> {
+        self.0.get_ref().send(buf)
+    }
+
+    /// Asyncronously reads data from the device and writes to the `buf`.
+    ///
+    /// # Arguments
+    /// * `buf`: Buffer to be filled with the data read from the device.
+    ///
+    /// # Returns
+    /// * `Ok`: Containing the number of bytes read from the device.
+    /// * `Err`: If reading data was unsuccessful.
+    pub async fn recv(&self, buf: &mut [u8]) -> error::Result<usize> {
         loop {
             let mut guard = self.0.readable().await?;
 
@@ -37,7 +72,15 @@ impl AsyncDev {
         }
     }
 
-    pub async fn send(&self, buf: &[u8]) -> Result<usize> {
+    /// Asyncronously writes data from `buf` to the device.
+    ///
+    /// # Arguments
+    /// * `buf`: Buffer to be written to the device.
+    ///
+    /// # Returns
+    /// * `Ok`: Containing the number of bytes written from the device.
+    /// * `Err`: If writting data was unsuccessful.
+    pub async fn send(&self, buf: &[u8]) -> error::Result<usize> {
         loop {
             let mut guard = self.0.writable().await?;
 

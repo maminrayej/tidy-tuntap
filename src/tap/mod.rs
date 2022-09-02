@@ -8,12 +8,9 @@ mod async_tap;
 #[cfg(feature = "tokio")]
 pub use async_tap::*;
 
-use std::sync;
+use crate::{dev, error, iface};
 
-use crate::dev;
-use crate::error::Result;
-use crate::iface;
-
+/// A blocking TAP interface.
 pub struct Tap(dev::Dev);
 
 impl std::ops::Deref for Tap {
@@ -31,11 +28,15 @@ impl std::ops::DerefMut for Tap {
 }
 
 impl Tap {
-    pub(crate) fn new(iface: sync::Arc<iface::Interface>, fd_index: usize) -> Result<Self> {
-        Ok(Tap(dev::Dev::new(iface, fd_index)?))
-    }
-
-    pub fn without_packet_info(name: &str) -> Result<Tap> {
+    /// Creates a blocking TAP interface without the packet info with the specified `name`.
+    ///
+    /// # Arguments
+    /// * `name`: Suggested name of the interface.
+    ///
+    /// # Returns
+    /// * `Ok`: Containing the TAP device if successful.
+    /// * `Err`: Otherwise.
+    pub fn without_packet_info(name: &str) -> error::Result<Tap> {
         Ok(Tap(dev::Dev::from_params(iface::InterfaceParams {
             name,
             mode: iface::Mode::Tap,
@@ -45,7 +46,15 @@ impl Tap {
         })?))
     }
 
-    pub fn with_packet_info(name: &str) -> Result<Tap> {
+    /// Creates a blocking TAP interface with the packet info with the specified `name`.
+    ///
+    /// # Arguments
+    /// * `name`: Suggested name of the interface.
+    ///
+    /// # Returns
+    /// * `Ok`: Containing the TAP device if successful.
+    /// * `Err`: Otherwise.
+    pub fn with_packet_info(name: &str) -> error::Result<Tap> {
         Ok(Tap(dev::Dev::from_params(iface::InterfaceParams {
             name,
             mode: iface::Mode::Tap,

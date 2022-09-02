@@ -1,12 +1,6 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 //! tidy-tuntap is a Rust wrapper for working with TUN/TAP devices in Linux.
-//!
-//! Creating, modifying, reading from, and writing to a TUN/TAP device can be done using the provided
-//! [Interface](`crate::iface::Interface`) struct. The device will be removed alongside
-//! with all the added routings from the system when the created `Interface` is dropped.
-//!
-//! For more info: [tuntap.txt](https://www.kernel.org/doc/Documentation/networking/tuntap.txt)
 
 // For working with TUN/TAP devices in Linux, we need some structs that the kernel uses to
 // pass data between kernel space and userspace. Bindings to these structs are provided using this

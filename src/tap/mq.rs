@@ -1,35 +1,42 @@
-use std::os::unix::prelude::AsRawFd;
-use std::{ops, sync};
+use crate::{dev, error, iface};
 
-use crate::bindings::*;
-use crate::error::Result;
-use crate::iface;
-use crate::ioctl;
-use crate::tap;
-
+/// A blocking multiqueue TAP interface.
 #[cfg_attr(docsrs, doc(cfg(feature = "mq")))]
-pub struct MQTap(tap::Tap);
+pub struct MQTap(dev::MQDev);
 
-impl ops::Deref for MQTap {
-    type Target = tap::Tap;
+impl std::ops::Deref for MQTap {
+    type Target = dev::MQDev;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
+impl std::ops::DerefMut for MQTap {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 impl MQTap {
-    fn new(iface_params: iface::InterfaceParams) -> Result<Vec<MQTap>> {
-        let iface = sync::Arc::new(iface::Interface::new(iface_params)?);
+    fn new(iface_params: iface::InterfaceParams) -> error::Result<Vec<MQTap>> {
+        let devs = dev::MQDev::new(iface_params)?;
 
-        let tuns: Result<Vec<MQTap>> = (0..iface.files.len())
-            .map(|fd_index| tap::Tap::new(iface.clone(), fd_index).map(MQTap))
-            .collect();
+        let tuns = devs.into_iter().map(MQTap).collect();
 
-        tuns
+        Ok(tuns)
     }
 
-    pub fn without_packet_info(name: &str, len: usize) -> Result<Vec<MQTap>> {
+    /// Creates a blocking multiqueue TAP interface without the packet info with the specified `name`.
+    ///
+    /// # Arguments
+    /// * `name`: Suggested name of the interface.
+    /// * `len`: Number of devices in the multiqueue.
+    ///
+    /// # Returns
+    /// * `Ok`: Containing the TAP device if successful.
+    /// * `Err`: If `len` is 0 or the interface creation fails.
+    pub fn without_packet_info(name: &str, len: usize) -> error::Result<Vec<MQTap>> {
         Self::new(iface::InterfaceParams {
             name,
             mode: iface::Mode::Tap,
@@ -39,7 +46,16 @@ impl MQTap {
         })
     }
 
-    pub fn with_packet_info(name: &str, len: usize) -> Result<Vec<MQTap>> {
+    /// Creates a blocking multiqueue TAP interface with the packet info with the specified `name`.
+    ///
+    /// # Arguments
+    /// * `name`: Suggested name of the interface.
+    /// * `len`: Number of devices in the multiqueue.
+    ///
+    /// # Returns
+    /// * `Ok`: Containing the TAP device if successful.
+    /// * `Err`: If `len` is 0 or the interface creation fails.
+    pub fn with_packet_info(name: &str, len: usize) -> error::Result<Vec<MQTap>> {
         Self::new(iface::InterfaceParams {
             name,
             mode: iface::Mode::Tap,
@@ -47,25 +63,5 @@ impl MQTap {
             non_blocking: false,
             no_packet_info: false,
         })
-    }
-
-    pub fn attach(&self) -> Result<()> {
-        let mut ifreq: ifreq = unsafe { std::mem::zeroed() };
-
-        ifreq.ifr_ifru.ifru_flags = nix::libc::IFF_ATTACH_QUEUE as i16;
-
-        unsafe { ioctl::tunsetqueue(self.as_raw_fd(), &ifreq as *const ifreq as u64)? };
-
-        Ok(())
-    }
-
-    pub fn detach(&self) -> Result<()> {
-        let mut ifreq: ifreq = unsafe { std::mem::zeroed() };
-
-        ifreq.ifr_ifru.ifru_flags = nix::libc::IFF_DETACH_QUEUE as i16;
-
-        unsafe { ioctl::tunsetqueue(self.as_raw_fd(), &ifreq as *const ifreq as u64)? };
-
-        Ok(())
     }
 }

@@ -1,3 +1,8 @@
+#[cfg(feature = "mq")]
+mod mq;
+#[cfg(feature = "mq")]
+pub use mq::*;
+
 #[cfg(feature = "tokio")]
 mod async_dev;
 #[cfg(feature = "tokio")]
@@ -6,13 +11,14 @@ pub use async_dev::*;
 use std::os::unix::prelude::{AsRawFd, RawFd};
 use std::{fs, io, mem, sync};
 
-use crate::error::Result;
-use crate::iface;
+use crate::{error, iface};
 
+/// Representing a blocking TUN/TAP device.
 pub struct Dev {
     iface: sync::Arc<iface::Interface>,
 
-    // This file will be closed by the `iface` hence we wrap it in manually drop.
+    // Owner of this file is `iface`.
+    // Therefore we wrap it in manually drop to not double close the file.
     file: mem::ManuallyDrop<fs::File>,
 }
 
@@ -25,7 +31,10 @@ impl std::ops::Deref for Dev {
 }
 
 impl Dev {
-    pub(crate) fn new(iface: sync::Arc<iface::Interface>, fd_index: usize) -> Result<Self> {
+    // Creates new `fd_index`th `Dev`, bound to the `iface`.
+    // For example in a multiqueue scenario, calling this function with `fd_index` = 0 will create
+    // the first `Dev` bound to the `iface`.
+    pub(crate) fn new(iface: sync::Arc<iface::Interface>, fd_index: usize) -> error::Result<Self> {
         let file = iface.files[fd_index].try_clone()?;
 
         Ok(Dev {
@@ -34,21 +43,34 @@ impl Dev {
         })
     }
 
-    pub(crate) fn from_params(iface_params: iface::InterfaceParams) -> Result<Self> {
+    // Creates a `Dev` using the parameters specified by `iface_params`.
+    pub(crate) fn from_params(iface_params: iface::InterfaceParams) -> error::Result<Self> {
         let iface = iface::Interface::new(iface_params)?;
 
         Dev::new(sync::Arc::new(iface), 0)
     }
 
-    pub fn iface(&self) -> &iface::Interface {
-        self.iface.as_ref()
-    }
-
-    pub fn send(&self, buf: &[u8]) -> Result<usize> {
+    /// Blocks and writes the data in `buf` into the device.
+    ///
+    /// # Arguments
+    /// * `buf`: Data to be written into the device.
+    ///
+    /// # Returns
+    /// * `Ok`: Containing the number of bytes written.
+    /// * `Err`: If any error occurs.
+    pub fn send(&self, buf: &[u8]) -> error::Result<usize> {
         Ok(nix::unistd::write(self.file.as_raw_fd(), buf)?)
     }
 
-    pub fn recv(&self, buf: &mut [u8]) -> Result<usize> {
+    /// Blocks and read the data from device into `buf`.
+    ///
+    /// # Arguments
+    /// * `buf`: Buffer to be filled with data read from the device.
+    ///
+    /// # Returns
+    /// * `Ok`: Containing the number of bytes read.
+    /// * `Err`: If any error occurs.
+    pub fn recv(&self, buf: &mut [u8]) -> error::Result<usize> {
         Ok(nix::unistd::read(self.file.as_raw_fd(), buf)?)
     }
 }
