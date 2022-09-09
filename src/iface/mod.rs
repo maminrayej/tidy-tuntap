@@ -1,7 +1,11 @@
 mod iface_param;
 
 use std::net;
-use std::os::unix::prelude::{AsRawFd, OpenOptionsExt, RawFd};
+use std::os::unix::{
+    io::OwnedFd,
+    prelude::{AsRawFd, FromRawFd, OpenOptionsExt},
+};
+
 use std::str::FromStr;
 
 use crate::{bindings, error, flags, ioctl, sockaddr};
@@ -43,12 +47,10 @@ pub struct Interface {
     // descriptor inside the `file` field). So we have to create an ifreq with the name of the
     // device but, call the ioctl on a UDP socket. The discussion I've found around it suggests
     // it's a legacy thing: https://vtun-devel.narkive.com/igeeWwFF/bringing-up-a-tun-device
-    //
-    // NOTE: This socket must be manually closed when this struct gets dropped.
-    inet4_socket: RawFd,
+    inet4_socket: OwnedFd,
 
     // Same rationale as `inet4_socket`, but for ioctls related to IPv6 addressing.
-    inet6_socket: RawFd,
+    inet6_socket: OwnedFd,
 }
 
 impl Interface {
@@ -107,19 +109,23 @@ impl Interface {
 
         // Create the weird UDP socket. For explanation go to the documentation
         // of the socket field of the Interface struct.
-        let inet4_socket = nix::sys::socket::socket(
-            nix::sys::socket::AddressFamily::Inet,
-            nix::sys::socket::SockType::Datagram,
-            nix::sys::socket::SockFlag::empty(),
-            None,
-        )?;
+        let inet4_socket = unsafe {
+            OwnedFd::from_raw_fd(nix::sys::socket::socket(
+                nix::sys::socket::AddressFamily::Inet,
+                nix::sys::socket::SockType::Datagram,
+                nix::sys::socket::SockFlag::empty(),
+                None,
+            )?)
+        };
 
-        let inet6_socket = nix::sys::socket::socket(
-            nix::sys::socket::AddressFamily::Inet6,
-            nix::sys::socket::SockType::Datagram,
-            nix::sys::socket::SockFlag::empty(),
-            None,
-        )?;
+        let inet6_socket = unsafe {
+            OwnedFd::from_raw_fd(nix::sys::socket::socket(
+                nix::sys::socket::AddressFamily::Inet6,
+                nix::sys::socket::SockType::Datagram,
+                nix::sys::socket::SockFlag::empty(),
+                None,
+            )?)
+        };
 
         Ok(Interface {
             name_raw,
@@ -178,7 +184,12 @@ impl Interface {
 
         ifreq.ifr_ifru.ifru_mtu = mtu;
 
-        unsafe { ioctl::siocsifmtu(self.inet4_socket, &ifreq as *const bindings::ifreq)? };
+        unsafe {
+            ioctl::siocsifmtu(
+                self.inet4_socket.as_raw_fd(),
+                &ifreq as *const bindings::ifreq,
+            )?
+        };
 
         Ok(())
     }
@@ -191,7 +202,12 @@ impl Interface {
     pub fn get_mtu(&self) -> error::Result<i32> {
         let mut ifreq = self.new_ifreq();
 
-        unsafe { ioctl::siocgifmtu(self.inet4_socket, &mut ifreq as *mut bindings::ifreq)? };
+        unsafe {
+            ioctl::siocgifmtu(
+                self.inet4_socket.as_raw_fd(),
+                &mut ifreq as *mut bindings::ifreq,
+            )?
+        };
 
         // Safety: Since we issued an ioctl for getting the MTU, it's safe to assume
         // that if the ioctl was successfull, kernel had set the `ifru_mtu` variant.
@@ -211,7 +227,12 @@ impl Interface {
 
         ifreq.ifr_ifru.ifru_netmask = sockaddr::to_sockaddr(netmask);
 
-        unsafe { ioctl::siocsifnetmask(self.inet4_socket, &ifreq as *const bindings::ifreq)? };
+        unsafe {
+            ioctl::siocsifnetmask(
+                self.inet4_socket.as_raw_fd(),
+                &ifreq as *const bindings::ifreq,
+            )?
+        };
 
         Ok(())
     }
@@ -224,7 +245,12 @@ impl Interface {
     pub fn get_netmask(&self) -> error::Result<net::Ipv4Addr> {
         let mut ifreq = self.new_ifreq();
 
-        unsafe { ioctl::siocgifnetmask(self.inet4_socket, &mut ifreq as *mut bindings::ifreq)? };
+        unsafe {
+            ioctl::siocgifnetmask(
+                self.inet4_socket.as_raw_fd(),
+                &mut ifreq as *mut bindings::ifreq,
+            )?
+        };
 
         // Safety: Since we issued an ioctl for getting the netmask, it's safe to assume
         // that if the ioctl was successfull, kernel had set the `ifru_netmask` variant.
@@ -239,7 +265,12 @@ impl Interface {
     pub fn get_index(&self) -> error::Result<i32> {
         let mut ifreq = self.new_ifreq();
 
-        unsafe { ioctl::siocgifindex(self.inet4_socket, &mut ifreq as *mut bindings::ifreq)? };
+        unsafe {
+            ioctl::siocgifindex(
+                self.inet4_socket.as_raw_fd(),
+                &mut ifreq as *mut bindings::ifreq,
+            )?
+        };
 
         // Safety: Since we issued an ioctl for getting the index, it's safe to assume
         // that if the ioctl was successfull, kernel had set the `ifru_ivalue` variant.
@@ -265,7 +296,10 @@ impl Interface {
         };
 
         unsafe {
-            ioctl::siocsifaddr6(self.inet6_socket, &in6_ifreq as *const bindings::in6_ifreq)?;
+            ioctl::siocsifaddr6(
+                self.inet6_socket.as_raw_fd(),
+                &in6_ifreq as *const bindings::in6_ifreq,
+            )?;
         }
 
         Ok(())
@@ -312,7 +346,10 @@ impl Interface {
         };
 
         unsafe {
-            ioctl::siocdifaddr6(self.inet6_socket, &in6_ifreq as *const bindings::in6_ifreq)?;
+            ioctl::siocdifaddr6(
+                self.inet6_socket.as_raw_fd(),
+                &in6_ifreq as *const bindings::in6_ifreq,
+            )?;
         }
 
         Ok(())
@@ -331,7 +368,12 @@ impl Interface {
 
         ifreq.ifr_ifru.ifru_addr = sockaddr::to_sockaddr(addr);
 
-        unsafe { ioctl::siocsifaddr(self.inet4_socket, &ifreq as *const bindings::ifreq)? };
+        unsafe {
+            ioctl::siocsifaddr(
+                self.inet4_socket.as_raw_fd(),
+                &ifreq as *const bindings::ifreq,
+            )?
+        };
 
         Ok(())
     }
@@ -344,7 +386,12 @@ impl Interface {
     pub fn get_addr(&self) -> error::Result<net::Ipv4Addr> {
         let mut ifreq = self.new_ifreq();
 
-        unsafe { ioctl::siocgifaddr(self.inet4_socket, &mut ifreq as *mut bindings::ifreq)? };
+        unsafe {
+            ioctl::siocgifaddr(
+                self.inet4_socket.as_raw_fd(),
+                &mut ifreq as *mut bindings::ifreq,
+            )?
+        };
 
         // Safety: Since we issued a ioctl for getting the netmask, it's safe to assume
         // that if the ioctl was successfull, kernel had set the `ifru_netmask` variant.
@@ -362,7 +409,12 @@ impl Interface {
         ifreq.ifr_ifru.ifru_addr =
             sockaddr::to_sockaddr(net::Ipv4Addr::from_str("0.0.0.0").unwrap());
 
-        unsafe { ioctl::siocsifaddr(self.inet4_socket, &ifreq as *const bindings::ifreq)? };
+        unsafe {
+            ioctl::siocsifaddr(
+                self.inet4_socket.as_raw_fd(),
+                &ifreq as *const bindings::ifreq,
+            )?
+        };
 
         Ok(())
     }
@@ -380,7 +432,12 @@ impl Interface {
 
         ifreq.ifr_ifru.ifru_broadaddr = sockaddr::to_sockaddr(brd_addr);
 
-        unsafe { ioctl::siocsifbrdaddr(self.inet4_socket, &ifreq as *const bindings::ifreq)? };
+        unsafe {
+            ioctl::siocsifbrdaddr(
+                self.inet4_socket.as_raw_fd(),
+                &ifreq as *const bindings::ifreq,
+            )?
+        };
 
         Ok(())
     }
@@ -393,7 +450,12 @@ impl Interface {
     pub fn get_brd_addr(&self) -> error::Result<net::Ipv4Addr> {
         let mut ifreq = self.new_ifreq();
 
-        unsafe { ioctl::siocgifbrdaddr(self.inet4_socket, &mut ifreq as *mut bindings::ifreq)? };
+        unsafe {
+            ioctl::siocgifbrdaddr(
+                self.inet4_socket.as_raw_fd(),
+                &mut ifreq as *mut bindings::ifreq,
+            )?
+        };
 
         // Safety: Since we issued a ioctl for getting the broadcast address, it's safe to assume
         // that if the ioctl was successfull, kernel had set the `ifru_broadaddr` variant.
@@ -413,7 +475,12 @@ impl Interface {
 
         ifreq.ifr_ifru.ifru_dstaddr = sockaddr::to_sockaddr(dst_addr);
 
-        unsafe { ioctl::siocsifdstaddr(self.inet4_socket, &ifreq as *const bindings::ifreq)? };
+        unsafe {
+            ioctl::siocsifdstaddr(
+                self.inet4_socket.as_raw_fd(),
+                &ifreq as *const bindings::ifreq,
+            )?
+        };
 
         Ok(())
     }
@@ -426,7 +493,12 @@ impl Interface {
     pub fn get_dst_addr(&self) -> error::Result<net::Ipv4Addr> {
         let mut ifreq = self.new_ifreq();
 
-        unsafe { ioctl::siocgifdstaddr(self.inet4_socket, &mut ifreq as *mut bindings::ifreq)? };
+        unsafe {
+            ioctl::siocgifdstaddr(
+                self.inet4_socket.as_raw_fd(),
+                &mut ifreq as *mut bindings::ifreq,
+            )?
+        };
 
         // Safety: Since we issued a ioctl for getting the destination address, it's safe to assume
         // that if the ioctl was successfull, kernel had set the `ifru_dstaddr` variant.
@@ -486,7 +558,12 @@ impl Interface {
     fn read_flags(&self) -> error::Result<i32> {
         let mut ifreq = self.new_ifreq();
 
-        unsafe { ioctl::siocgifflags(self.inet4_socket, &mut ifreq as *mut bindings::ifreq)? };
+        unsafe {
+            ioctl::siocgifflags(
+                self.inet4_socket.as_raw_fd(),
+                &mut ifreq as *mut bindings::ifreq,
+            )?
+        };
 
         Ok(unsafe { ifreq.ifr_ifru.ifru_flags.into() })
     }
@@ -512,16 +589,12 @@ impl Interface {
             }
 
             // Then finally set the updated flags.
-            ioctl::siocsifflags(self.inet4_socket, &ifreq as *const bindings::ifreq)?;
+            ioctl::siocsifflags(
+                self.inet4_socket.as_raw_fd(),
+                &ifreq as *const bindings::ifreq,
+            )?;
         }
 
         Ok(())
-    }
-}
-
-impl Drop for Interface {
-    fn drop(&mut self) {
-        nix::unistd::close(self.inet4_socket).expect("Failed to close the socket");
-        nix::unistd::close(self.inet6_socket).expect("Failed to close the socket");
     }
 }
