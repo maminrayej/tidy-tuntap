@@ -26,9 +26,11 @@
 // }                                      -----------
 //                                         16 bytes
 
+use std::net;
+
 use crate::bindings;
 
-pub fn to_sockaddr(addr: std::net::Ipv4Addr) -> bindings::sockaddr {
+pub fn to_sockaddr(addr: net::Ipv4Addr) -> bindings::sockaddr {
     let mut sockaddr_in: nix::libc::sockaddr_in = unsafe { std::mem::zeroed() };
 
     sockaddr_in.sin_family = nix::libc::AF_INET as u16;
@@ -40,7 +42,7 @@ pub fn to_sockaddr(addr: std::net::Ipv4Addr) -> bindings::sockaddr {
     unsafe { std::mem::transmute(sockaddr_in) }
 }
 
-pub fn to_ipv4(addr: bindings::sockaddr) -> std::net::Ipv4Addr {
+pub fn to_ipv4(addr: bindings::sockaddr) -> net::Ipv4Addr {
     let sockaddr_in: nix::libc::sockaddr_in = unsafe { std::mem::transmute(addr) };
 
     sockaddr_in.sin_addr.s_addr.to_le_bytes().into()

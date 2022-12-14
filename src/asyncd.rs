@@ -1,30 +1,25 @@
 use std::io::{self, Read, Write};
+use std::ops;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use tokio::io::unix::AsyncFd;
 use tokio::io::{AsyncRead, AsyncWrite};
 
-use crate::{dev, error, iface};
+use crate::device::{new, Device, Mode};
+use crate::error::Result;
 
-/// A non-blocking device representing a TUN/TAP device.
-#[cfg_attr(docsrs, doc(cfg(feature = "tokio")))]
-pub struct AsyncDev(AsyncFd<dev::Dev>);
+pub struct AsyncDevice(AsyncFd<Device>);
+impl AsyncDevice {
+    fn new(name: impl AsRef<str>, mode: Mode, packet_info: bool) -> Result<Self> {
+        let (name, mut files, inet4_socket, inet6_socket) = new(name, mode, 1, packet_info, true)?;
 
-impl std::ops::Deref for AsyncDev {
-    type Target = iface::Interface;
-
-    fn deref(&self) -> &Self::Target {
-        self.0.get_ref()
-    }
-}
-
-impl AsyncDev {
-    // Creates a new `AsyncDev` with the specified `iface_params`.
-    pub(crate) fn from_params(iface_params: iface::InterfaceParams) -> error::Result<Self> {
-        Ok(AsyncDev(AsyncFd::new(dev::Dev::from_params(
-            iface_params,
-        )?)?))
+        Ok(AsyncDevice(AsyncFd::new(Device {
+            name,
+            file: files.pop().unwrap(),
+            inet4_socket,
+            inet6_socket,
+        })?))
     }
 
     /// Tries to read data from the device and fill the buffer `buf`.
@@ -36,7 +31,7 @@ impl AsyncDev {
     /// * `Ok`: Containing the number of bytes read from the device.
     /// * `Err`: If the device was not ready to be read(a `WOULDBLOCK` err), or some other error
     /// occurred.
-    pub fn try_recv(&self, buf: &mut [u8]) -> error::Result<usize> {
+    pub fn try_recv(&self, buf: &mut [u8]) -> Result<usize> {
         self.0.get_ref().recv(buf)
     }
 
@@ -49,7 +44,7 @@ impl AsyncDev {
     /// * `Ok`: Containing the number of bytes written to the device.
     /// * `Err`: If the device was not ready to be written to(a `WOULDBLOCK` err), or some other error
     /// occurred.
-    pub fn try_send(&self, buf: &[u8]) -> error::Result<usize> {
+    pub fn try_send(&self, buf: &[u8]) -> Result<usize> {
         self.0.get_ref().send(buf)
     }
 
@@ -61,7 +56,7 @@ impl AsyncDev {
     /// # Returns
     /// * `Ok`: Containing the number of bytes read from the device.
     /// * `Err`: If reading data was unsuccessful.
-    pub async fn recv(&self, buf: &mut [u8]) -> error::Result<usize> {
+    pub async fn recv(&self, buf: &mut [u8]) -> Result<usize> {
         loop {
             let mut guard = self.0.readable().await?;
 
@@ -80,7 +75,7 @@ impl AsyncDev {
     /// # Returns
     /// * `Ok`: Containing the number of bytes written from the device.
     /// * `Err`: If writting data was unsuccessful.
-    pub async fn send(&self, buf: &[u8]) -> error::Result<usize> {
+    pub async fn send(&self, buf: &[u8]) -> Result<usize> {
         loop {
             let mut guard = self.0.writable().await?;
 
@@ -92,7 +87,20 @@ impl AsyncDev {
     }
 }
 
-impl AsyncRead for AsyncDev {
+impl ops::Deref for AsyncDevice {
+    type Target = Device;
+
+    fn deref(&self) -> &Self::Target {
+        self.0.get_ref()
+    }
+}
+impl ops::DerefMut for AsyncDevice {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.0.get_mut()
+    }
+}
+
+impl AsyncRead for AsyncDevice {
     fn poll_read(
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
@@ -116,7 +124,7 @@ impl AsyncRead for AsyncDev {
     }
 }
 
-impl AsyncWrite for AsyncDev {
+impl AsyncWrite for AsyncDevice {
     fn poll_write(
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
@@ -140,5 +148,47 @@ impl AsyncWrite for AsyncDev {
 
     fn poll_shutdown(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         Poll::Ready(Ok(()))
+    }
+}
+
+pub struct AsyncTun(AsyncDevice);
+impl AsyncTun {
+    pub fn new(name: impl AsRef<str>, packet_info: bool) -> Result<Self> {
+        let device = AsyncDevice::new(name, Mode::Tun, packet_info)?;
+
+        Ok(AsyncTun(device))
+    }
+}
+impl ops::Deref for AsyncTun {
+    type Target = AsyncDevice;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl ops::DerefMut for AsyncTun {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+pub struct AsyncTap(AsyncDevice);
+impl AsyncTap {
+    pub fn new(name: impl AsRef<str>, packet_info: bool) -> Result<Self> {
+        let device = AsyncDevice::new(name, Mode::Tap, packet_info)?;
+
+        Ok(AsyncTap(device))
+    }
+}
+impl ops::Deref for AsyncTap {
+    type Target = AsyncDevice;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl ops::DerefMut for AsyncTap {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }

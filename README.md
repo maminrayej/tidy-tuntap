@@ -7,8 +7,3 @@ There are examples of using this crate in the `examples` folder which also act a
 * Multiqueue support
 * Async support
 * IPv6 support
-
-## Roadmap
-- [ ] Windows support
-- [ ] MacOS support
-- [ ] OpenBSD support

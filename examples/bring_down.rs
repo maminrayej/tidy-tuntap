@@ -1,7 +1,7 @@
 use tidy_tuntap::*;
 
 fn main() {
-    let tun = tun::Tun::without_packet_info("tun10").unwrap();
+    let tun = Tun::new("tun10", false).unwrap();
 
     tun.bring_up().unwrap();
     let flags = tun.flags().unwrap();

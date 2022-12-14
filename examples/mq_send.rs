@@ -4,7 +4,7 @@ use etherparse::PacketBuilder;
 use tidy_tuntap::*;
 
 fn main() {
-    let mq = tun::MQTun::without_packet_info("tun10", 3).unwrap();
+    let mq = MQTun::new("tun10", 3, false).unwrap();
 
     mq[0].bring_up().unwrap();
     mq[0].set_addr(Ipv4Addr::new(10, 10, 10, 1)).unwrap();

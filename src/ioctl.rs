@@ -1,23 +1,8 @@
-// NOTE: There are two types of ioctls in the kernel. The good ones and the bad ones.
-// The good ioctls use a combination of an ioctl identifier with an ioctl sequence number to
-// generate the ioctl numbers. For example the TUNSETIFF ioctl is a good ioctl that uses the
-// `T` identifier and 202 sequence number. There are also bad ioctls that don't use the new system
-// of generating ioctl numbers and use hardcoded values. These ioctls are postfixed as `*_bad` by
-// the nix crate.
-// There is a difference between calling these two types of ioctls. When calling a good ioctl, we
-// pass the value of the pointer to our struct as an `int`. That's why the TUNSETIFF ioctl is an
-// `ioctl_write_int` macro instead of an `ioctl_write_ptr`. (I don't why the latter does not work
-// but I've tested it and it doesn't. Feel free to open an issue on Github and correct this piece
-// of document if you've found it to be false)
-// But when calling the bad ioctls, we use the `ioctl_write_ptr_bad` and pass the pointer to our
-// struct.
-
 use crate::bindings;
 
 // Can be used to set the flags and name of the TUN/TAP device.
 // The flag can indicate whether the device is a TUN device or a TAP device.
 // We can also determine whether we want the packet info or not.
-// For more info about its usage look at the `Interface::new` function in the `iface` module.
 nix::ioctl_write_int!(tunsetiff, 'T', 202);
 
 // Can be used to make the TUN/TAP interface persistent. In this mode,

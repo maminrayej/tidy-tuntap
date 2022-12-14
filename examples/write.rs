@@ -5,7 +5,7 @@ use etherparse::PacketBuilder;
 use tidy_tuntap::*;
 
 fn main() {
-    let mut tun = tun::Tun::without_packet_info("tun10").unwrap();
+    let mut tun = Tun::new("tun10", false).unwrap();
     tun.bring_up().unwrap();
     tun.set_addr(Ipv4Addr::new(10, 10, 10, 1)).unwrap();
     tun.set_brd_addr(Ipv4Addr::new(10, 10, 10, 255)).unwrap();
