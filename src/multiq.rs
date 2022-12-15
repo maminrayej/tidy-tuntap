@@ -5,6 +5,7 @@ use crate::device::{new, Device, Mode};
 use crate::error::{Error, Result};
 use crate::{bindings, ioctl};
 
+/// Represents a multiqueue TUN/TAP device.
 pub struct MQDevice(Device);
 impl MQDevice {
     fn new(
@@ -74,6 +75,7 @@ impl ops::DerefMut for MQDevice {
     }
 }
 
+/// Represents a multiqueue TUN device.
 pub struct MQTun(MQDevice);
 impl MQTun {
     pub fn new(name: impl AsRef<str>, device_count: usize, packet_info: bool) -> Result<Vec<Self>> {
@@ -95,6 +97,7 @@ impl ops::DerefMut for MQTun {
     }
 }
 
+/// Represents a mutliqueue TAP device.
 pub struct MQTap(MQDevice);
 impl MQTap {
     pub fn new(name: impl AsRef<str>, device_count: usize, packet_info: bool) -> Result<Vec<Self>> {

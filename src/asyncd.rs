@@ -9,6 +9,8 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use crate::device::{new, Device, Mode};
 use crate::error::Result;
 
+/// Represents a non-blocking TUN/TAP device.
+#[cfg_attr(docsrs, doc(cfg(feature = "tokio")))]
 pub struct AsyncDevice(AsyncFd<Device>);
 impl AsyncDevice {
     fn new(name: impl AsRef<str>, mode: Mode, packet_info: bool) -> Result<Self> {
@@ -151,6 +153,8 @@ impl AsyncWrite for AsyncDevice {
     }
 }
 
+/// Represents a non-blocking TUN device.
+#[cfg_attr(docsrs, doc(cfg(feature = "tokio")))]
 pub struct AsyncTun(AsyncDevice);
 impl AsyncTun {
     pub fn new(name: impl AsRef<str>, packet_info: bool) -> Result<Self> {
@@ -172,6 +176,8 @@ impl ops::DerefMut for AsyncTun {
     }
 }
 
+/// Represents a non-blocking TAP device.
+#[cfg_attr(docsrs, doc(cfg(feature = "tokio")))]
 pub struct AsyncTap(AsyncDevice);
 impl AsyncTap {
     pub fn new(name: impl AsRef<str>, packet_info: bool) -> Result<Self> {

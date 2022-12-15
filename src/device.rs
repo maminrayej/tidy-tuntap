@@ -7,11 +7,13 @@ use crate::error::Result;
 use crate::flags::Flags;
 use crate::{bindings, ioctl, sockaddr};
 
+/// Represents the mode/type of device.
 pub enum Mode {
     Tun,
     Tap,
 }
 
+// Determines what operation should be done one the active flags of the device.
 enum Op {
     Add,
     Del,
@@ -108,6 +110,7 @@ pub(crate) fn new(
     ))
 }
 
+/// Represents a blocking TUN/TAP device.
 pub struct Device {
     pub(crate) name: Arc<[i8; 16]>,
     pub(crate) file: fs::File,
@@ -638,6 +641,7 @@ impl AsRawFd for Device {
     }
 }
 
+/// Represents a blocking TUN device.
 pub struct Tun(Device);
 impl Tun {
     pub fn new(name: impl AsRef<str>, packet_info: bool) -> Result<Self> {
@@ -659,6 +663,7 @@ impl ops::DerefMut for Tun {
     }
 }
 
+/// Represents a blocking TAP device.
 pub struct Tap(Device);
 impl Tap {
     pub fn new(name: impl AsRef<str>, packet_info: bool) -> Result<Self> {

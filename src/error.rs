@@ -2,7 +2,6 @@ use std::io;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-/// Different errors that can occur.
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("Device count must be greater than zero")]
