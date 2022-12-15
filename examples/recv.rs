@@ -4,7 +4,7 @@ use etherparse::{IpHeader, PacketHeaders, TransportHeader};
 use tidy_tuntap::*;
 
 fn main() {
-    let tun = tun::Tun::without_packet_info("tun10").unwrap();
+    let tun = Tun::new("tun10", false).unwrap();
     tun.bring_up().unwrap();
     tun.set_addr(Ipv4Addr::new(10, 10, 10, 1)).unwrap();
     tun.set_brd_addr(Ipv4Addr::new(10, 10, 10, 255)).unwrap();

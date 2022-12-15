@@ -4,7 +4,7 @@ use std::str::FromStr;
 use tidy_tuntap::*;
 
 fn main() {
-    let tun = tun::Tun::without_packet_info("tun10").unwrap();
+    let tun = Tun::new("tun10", false).unwrap();
 
     tun.set_ipv6_addr(Ipv6Addr::from_str("fe80::be8f:5838:c7ca:b98").unwrap())
         .unwrap();
