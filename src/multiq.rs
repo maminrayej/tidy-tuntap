@@ -1,11 +1,14 @@
 use std::ops;
 use std::os::unix::prelude::AsRawFd;
 
-use crate::device::{new, Device, Mode};
+use crate::common::create_device;
+use crate::device::Device;
 use crate::error::{Error, Result};
-use crate::{bindings, ioctl};
+use crate::{bindings, ioctl, Mode};
 
 /// Represents a multiqueue TUN/TAP device.
+///
+/// Contains the shared code between [`MQTun`](crate::MQTun) and [`MQTap`](crate::MQTap).
 pub struct MQDevice(Device);
 impl MQDevice {
     fn new(
@@ -19,7 +22,7 @@ impl MQDevice {
         }
 
         let (name, files, inet4_socket, inet6_socket) =
-            new(name, mode, device_count, packet_info, false)?;
+            create_device(name, mode, device_count, packet_info, false)?;
 
         Ok(files
             .into_iter()

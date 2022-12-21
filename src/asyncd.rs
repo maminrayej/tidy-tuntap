@@ -6,15 +6,19 @@ use std::task::{Context, Poll};
 use tokio::io::unix::AsyncFd;
 use tokio::io::{AsyncRead, AsyncWrite};
 
-use crate::device::{new, Device, Mode};
+use crate::common::{create_device, Mode};
+use crate::device::Device;
 use crate::error::Result;
 
 /// Represents a non-blocking TUN/TAP device.
+///
+/// Contains the shared code between [`AsyncTun`](crate::AsyncTun) and [`AsyncTap`](crate::AsyncTap).
 #[cfg_attr(docsrs, doc(cfg(feature = "tokio")))]
 pub struct AsyncDevice(AsyncFd<Device>);
 impl AsyncDevice {
     fn new(name: impl AsRef<str>, mode: Mode, packet_info: bool) -> Result<Self> {
-        let (name, mut files, inet4_socket, inet6_socket) = new(name, mode, 1, packet_info, true)?;
+        let (name, mut files, inet4_socket, inet6_socket) =
+            create_device(name, mode, 1, packet_info, true)?;
 
         Ok(AsyncDevice(AsyncFd::new(Device {
             name,

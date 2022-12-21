@@ -5,15 +5,16 @@ use crate::bindings;
 // We can also determine whether we want the packet info or not.
 nix::ioctl_write_int!(tunsetiff, 'T', 202);
 
-// Can be used to make the TUN/TAP interface persistent. In this mode,
-// the interface won't be destroyed when the last process closes the associated /dev/net/tun file descriptor.
+// Can be used to make the TUN/TAP device persistent. In this mode,
+// the device won't be destroyed when the last process closes the associated file descriptor.
 nix::ioctl_write_int!(tunsetpersist, 'T', 203);
 
-// Can be used to assign a persistent interface to a given user or a whole group
-// in order to give a non-root user access to a TUN/TAP interface.
+// Can be used to assign a persistent device to a given user or a whole group
+// in order to give a non-root user access to a TUN/TAP device.
 nix::ioctl_write_int!(tunsetowner, 'T', 204);
 nix::ioctl_write_int!(tunsetgroup, 'T', 206);
 
+// Can be used to attach or detach a mutliqueue.
 nix::ioctl_write_int!(tunsetqueue, 'T', 217);
 
 // Can be used to set and get the active flags of the device.
@@ -45,6 +46,8 @@ nix::ioctl_read_bad!(siocgifbrdaddr, nix::libc::SIOCGIFBRDADDR, bindings::ifreq)
 nix::ioctl_write_ptr_bad!(siocsifmetric, nix::libc::SIOCSIFMETRIC, bindings::ifreq);
 nix::ioctl_read_bad!(siocgifmetric, nix::libc::SIOCGIFMETRIC, bindings::ifreq);
 
-// Can be used to get the interface index.
+// Can be used to get the device index.
 nix::ioctl_read_bad!(siocgifindex, bindings::SIOCGIFINDEX, bindings::ifreq);
+
+// Can be used to delete an IPv6 address of the device.
 nix::ioctl_write_ptr_bad!(siocdifaddr6, bindings::SIOCDIFADDR, bindings::in6_ifreq);

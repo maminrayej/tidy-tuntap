@@ -3,15 +3,10 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::{fs, io, net, ops};
 
+use crate::common::create_device;
 use crate::error::Result;
 use crate::flags::Flags;
-use crate::{bindings, ioctl, sockaddr};
-
-/// Represents the mode/type of device.
-pub enum Mode {
-    Tun,
-    Tap,
-}
+use crate::{bindings, ioctl, sockaddr, Mode};
 
 // Determines what operation should be done one the active flags of the device.
 enum Op {
@@ -19,98 +14,9 @@ enum Op {
     Del,
 }
 
-pub(crate) fn new(
-    name: impl AsRef<str>,
-    mode: Mode,
-    device_count: usize,
-    packet_info: bool,
-    non_blocking: bool,
-) -> Result<(Arc<[i8; 16]>, Vec<fs::File>, Arc<OwnedFd>, Arc<OwnedFd>)> {
-    let mut flags = match mode {
-        Mode::Tun => nix::libc::IFF_TUN,
-        Mode::Tap => nix::libc::IFF_TAP,
-    };
-
-    if !packet_info {
-        flags |= nix::libc::IFF_NO_PI;
-    }
-
-    if device_count > 1 {
-        flags |= nix::libc::IFF_MULTI_QUEUE;
-    }
-
-    let non_blocking_flag = if non_blocking {
-        nix::libc::O_NONBLOCK
-    } else {
-        0
-    };
-
-    // Convert the device name into a struct that the kernel expects.
-    //
-    // Kernel uses a constant called IFNAMSIZ with the value of 16 to
-    // indicate the maximum number of characters the device name can have.
-    // I don't know this string must be null terminated or not. So to be safe,
-    // I truncate the first 15 characters of the `name` provided` by the user,
-    // and copy it to the name array (which is null terminated because
-    // it is initialized by zeros).
-    //
-    // Source: The IFNAMSIZ is defined in the `linux/if.h`.
-    let mut ifr_name = [0i8; 16];
-    for (i, c) in name.as_ref().as_bytes().iter().enumerate().take(15) {
-        ifr_name[i] = *c as i8;
-    }
-
-    // Construct the request with the computed flags and name.
-    let mut ifr: bindings::ifreq = unsafe { std::mem::zeroed() };
-    ifr.ifr_ifru.ifru_flags = flags as i16;
-    ifr.ifr_ifrn.ifrn_name = ifr_name;
-
-    let mut files = Vec::with_capacity(device_count);
-    for _ in 0..device_count {
-        let file = std::fs::OpenOptions::new()
-            .read(true)
-            .write(true)
-            .custom_flags(non_blocking_flag)
-            .open("/dev/net/tun")?;
-
-        // Call the ioctl to set the flags and name of the device.
-        unsafe { ioctl::tunsetiff(file.as_raw_fd(), &ifr as *const bindings::ifreq as u64)? };
-
-        files.push(file);
-    }
-
-    // Get the name chosen by the kernel.
-    let name = unsafe { ifr.ifr_ifrn.ifrn_name };
-
-    // Create the weird UDP socket. For explanation go to the documentation
-    // of the socket field of the Interface struct.
-    let inet4_socket = unsafe {
-        OwnedFd::from_raw_fd(nix::sys::socket::socket(
-            nix::sys::socket::AddressFamily::Inet,
-            nix::sys::socket::SockType::Datagram,
-            nix::sys::socket::SockFlag::empty(),
-            None,
-        )?)
-    };
-
-    let inet6_socket = unsafe {
-        OwnedFd::from_raw_fd(nix::sys::socket::socket(
-            nix::sys::socket::AddressFamily::Inet6,
-            nix::sys::socket::SockType::Datagram,
-            nix::sys::socket::SockFlag::empty(),
-            None,
-        )?)
-    };
-
-    Ok((
-        Arc::new(name),
-        files,
-        Arc::new(inet4_socket),
-        Arc::new(inet6_socket),
-    ))
-}
-
 /// Represents a blocking TUN/TAP device.
+/// 
+/// Contains the shared code between [`Tun`](crate::Tun) and [`Tap`](crate::Tap).
 pub struct Device {
     pub(crate) name: Arc<[i8; 16]>,
     pub(crate) file: fs::File,
@@ -121,7 +27,8 @@ pub struct Device {
 
 impl Device {
     fn new(name: impl AsRef<str>, mode: Mode, packet_info: bool) -> Result<Self> {
-        let (name, mut files, inet4_socket, inet6_socket) = new(name, mode, 1, packet_info, false)?;
+        let (name, mut files, inet4_socket, inet6_socket) =
+            create_device(name, mode, 1, packet_info, false)?;
 
         Ok(Self {
             name,
@@ -542,7 +449,7 @@ impl Device {
     //    }
 
     // Returns an empty ifreq with the same name of this device.
-    pub(crate) fn new_ifreq(&self) -> bindings::ifreq {
+    fn new_ifreq(&self) -> bindings::ifreq {
         let mut ifreq: bindings::ifreq = unsafe { std::mem::zeroed() };
 
         ifreq.ifr_ifrn.ifrn_name = *self.name;

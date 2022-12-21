@@ -1,7 +1,7 @@
 [package]
 name = "tidy-tuntap"
 description = "tidy-tuntap is a Rust wrapper for working with TUN/TAP devices in Linux"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 authors = ["m.amin.rayej <m.amin.rayej@gmail.com>"]
 repository = "https://github.com/maminrayej/tidy-tuntap"

@@ -21,7 +21,7 @@ cargo build --examples --all-features
 # We only want to execute the ones that don't have a random string in their name.
 # So we filter the executable files in the examples directory using grep to not list
 # the files that contain a random string. Luckily, these files all have `-` in their name.
-find target/debug/examples/ -regex ".*/[a-zA-Z_]+$" | while read -r example
+find target/debug/examples/ -regex ".*/[0-9a-zA-Z_]+$" | while read -r example
 do
 	# In order for the generated executable to be able to create a TUN/TAP device,
 	# and perform other functionalities related to network administration, 
