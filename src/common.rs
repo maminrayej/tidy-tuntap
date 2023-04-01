@@ -2,10 +2,12 @@ use std::fs;
 use std::os::unix::prelude::*;
 use std::sync::Arc;
 
+use nix::sys::socket;
+
 use crate::error::Result;
 use crate::{bindings, ioctl};
 
-/// Represents the mode/type of device.
+/// Represents the mode of device.
 pub enum Mode {
     Tun,
     Tap,
@@ -77,19 +79,19 @@ pub fn create_device(
     // Create the weird UDP socket. For explanation go to the documentation
     // of the socket field of the Interface struct.
     let inet4_socket = unsafe {
-        OwnedFd::from_raw_fd(nix::sys::socket::socket(
-            nix::sys::socket::AddressFamily::Inet,
-            nix::sys::socket::SockType::Datagram,
-            nix::sys::socket::SockFlag::empty(),
+        OwnedFd::from_raw_fd(socket::socket(
+            socket::AddressFamily::Inet,
+            socket::SockType::Datagram,
+            socket::SockFlag::empty(),
             None,
         )?)
     };
 
     let inet6_socket = unsafe {
-        OwnedFd::from_raw_fd(nix::sys::socket::socket(
-            nix::sys::socket::AddressFamily::Inet6,
-            nix::sys::socket::SockType::Datagram,
-            nix::sys::socket::SockFlag::empty(),
+        OwnedFd::from_raw_fd(socket::socket(
+            socket::AddressFamily::Inet6,
+            socket::SockType::Datagram,
+            socket::SockFlag::empty(),
             None,
         )?)
     };

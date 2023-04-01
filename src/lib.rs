@@ -6,12 +6,12 @@
  * instead of receiving packets from physical media, receives them from
  * user space program and instead of sending packets via physical media
  * writes them to the user space program.
- * 
+ *
  * This crate provides three different kinds of TUN/TAP devices:
  * * Blocking: [`Tun`](crate::Tun)/[`Tap`](crate::Tap)
  * * Multiqueue: [`MQTun`](crate::MQTun)/[`MQTap`](crate::MQTap)
  * * Non-blocking: [`AsyncTun`](crate::AsyncTun)/[`AsyncTap`](crate::AsyncTap)
- * 
+ *
  * **NOTE**: There is a device type corrospoding to each TUN/TAP type. You can't construct these
  * devices since they're only there to contain the shared code between TUN/TAP devices.
  */
@@ -27,13 +27,13 @@ pub use common::Mode;
 pub mod error;
 pub mod flags;
 
-#[cfg(feature = "tokio")]
-mod asyncd;
-#[cfg(feature = "tokio")]
-pub use asyncd::*;
-
 mod device;
 pub use device::*;
 
 mod multiq;
 pub use multiq::*;
+
+#[cfg(feature = "tokio")]
+mod asyncd;
+#[cfg(feature = "tokio")]
+pub use asyncd::*;

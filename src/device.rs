@@ -8,15 +8,10 @@ use crate::error::Result;
 use crate::flags::Flags;
 use crate::{bindings, ioctl, sockaddr, Mode};
 
-// Determines what operation should be done one the active flags of the device.
-enum Op {
-    Add,
-    Del,
-}
-
 /// Represents a blocking TUN/TAP device.
-/// 
+///
 /// Contains the shared code between [`Tun`](crate::Tun) and [`Tap`](crate::Tap).
+#[derive(Debug)]
 pub struct Device {
     pub(crate) name: Arc<[i8; 16]>,
     pub(crate) file: fs::File,
@@ -38,8 +33,7 @@ impl Device {
         })
     }
 
-    /// # Returns
-    /// The name of the device chosen by the kernel.
+    /// Returns The name of the device chosen by the kernel.
     #[rustfmt::skip]
     pub fn name(&self) -> String {
         String::from_iter(self.name.iter().map_while(|c| {
@@ -49,39 +43,22 @@ impl Device {
         }))
     }
 
-    /// # Returns
-    /// * `Ok`: Containing the active flags of the interface.
-    /// * `Err`: If the ioctl failed.
+    /// Returns the active flags of the interface.
     pub fn flags(&self) -> Result<Flags> {
         self.read_flags()?.try_into()
     }
 
-    /// Brings the device up meaning makes it ready to send and receive packets.
-    ///
-    /// # Returns
-    /// * `Ok`: If the device was successfully brought up.
-    /// * `Err`: If the ioctl failed.
+    /// Brings the device up which makes it ready to send and receive packets.
     pub fn bring_up(&self) -> Result<()> {
-        self.mod_flags(Op::Add, nix::libc::IFF_UP | nix::libc::IFF_RUNNING)
+        self.add_flags(nix::libc::IFF_UP | nix::libc::IFF_RUNNING)
     }
 
-    /// Brings the device down meaning makes it unable to send and receive packets.
-    ///
-    /// # Returns
-    /// * `Ok`: If the device was successfully brought down.
-    /// * `Err`: If the ioctl failed.
+    /// Brings the device down which makes it unable to send and receive packets.
     pub fn bring_down(&self) -> Result<()> {
-        self.mod_flags(Op::Del, nix::libc::IFF_UP | nix::libc::IFF_RUNNING)
+        self.del_flags(nix::libc::IFF_UP | nix::libc::IFF_RUNNING)
     }
 
     /// Sets the MTU of the device.
-    ///
-    /// # Arguments
-    /// * `mtu`: New MTU of the device.
-    ///
-    /// # Returns
-    /// * `Ok`: If the MTU of the device has been successfully changed to `mtu`.
-    /// * `Err`: If the ioctl failed.
     pub fn set_mtu(&self, mtu: i32) -> Result<()> {
         let mut ifreq = self.new_ifreq();
 
@@ -97,11 +74,7 @@ impl Device {
         Ok(())
     }
 
-    /// Gets the MTU of the device.
-    ///
-    /// # Returns
-    /// * `Ok`: Containing the MTU of the device.
-    /// * `Err`: If the ioctl failed.
+    /// Returns the MTU of the device.
     pub fn get_mtu(&self) -> Result<i32> {
         let mut ifreq = self.new_ifreq();
 
@@ -112,19 +85,14 @@ impl Device {
             )?
         };
 
-        // Safety: Since we issued an ioctl for getting the MTU, it's safe to assume
+        // Safety:
+        //
+        // Since we issued an ioctl for getting the MTU, it's safe to assume
         // that if the ioctl was successfull, kernel had set the `ifru_mtu` variant.
         Ok(unsafe { ifreq.ifr_ifru.ifru_mtu })
     }
 
     /// Sets the netmask of the device.
-    ///
-    /// # Arguments
-    /// * `netmask`: New netmask of the device.
-    ///
-    /// # Returns
-    /// * `Ok`: If the netmask of the device has been successfully changed.
-    /// * `Err`: If the ioctl failed.
     pub fn set_netmask(&self, netmask: net::Ipv4Addr) -> Result<()> {
         let mut ifreq = self.new_ifreq();
 
@@ -140,11 +108,7 @@ impl Device {
         Ok(())
     }
 
-    /// Gets the netmask of the device.
-    ///
-    /// # Returns
-    /// * `Ok`: Containing the netmask of the interface.
-    /// * `Err`: If the ioctl failed.
+    /// Sets the netmask of the device.
     pub fn get_netmask(&self) -> Result<net::Ipv4Addr> {
         let mut ifreq = self.new_ifreq();
 
@@ -155,16 +119,14 @@ impl Device {
             )?
         };
 
-        // Safety: Since we issued an ioctl for getting the netmask, it's safe to assume
+        // Safety:
+        //
+        // Since we issued an ioctl for getting the netmask, it's safe to assume
         // that if the ioctl was successfull, kernel had set the `ifru_netmask` variant.
         Ok(sockaddr::to_ipv4(unsafe { ifreq.ifr_ifru.ifru_netmask }))
     }
 
-    /// Gets the index of the interface.
-    ///
-    /// # Returns
-    /// * `Ok`: Containing the index of the interface.
-    /// * `Err`: If the ioctl failed.
+    /// Returns the index of the interface.
     pub fn get_index(&self) -> Result<i32> {
         let mut ifreq = self.new_ifreq();
 
@@ -175,19 +137,14 @@ impl Device {
             )?
         };
 
-        // Safety: Since we issued an ioctl for getting the index, it's safe to assume
+        // Safety:
+        //
+        // Since we issued an ioctl for getting the index, it's safe to assume
         // that if the ioctl was successfull, kernel had set the `ifru_ivalue` variant.
         Ok(unsafe { ifreq.ifr_ifru.ifru_ivalue })
     }
 
     /// Adds the specified `addr` to the list of IPv6 addresses of the interface.
-    ///
-    /// # Arguments
-    /// * `addr`: New IPv6 address of the device.
-    ///
-    /// # Returns
-    /// * `Ok`: If the specified IPv6 address has been successfully added.
-    /// * `Err`: If the ioctl failed.
     pub fn set_ipv6_addr(&self, addr: net::Ipv6Addr) -> Result<()> {
         let ifindex = self.get_index()?;
 
@@ -208,11 +165,7 @@ impl Device {
         Ok(())
     }
 
-    /// Gets the list of IPv6 addresses of the interface.
-    ///
-    /// # Returns
-    /// * `Ok`: Containing the IPv6 addresses of the interface.
-    /// * `Err`: If the ioctl failed.
+    /// Returns the list of IPv6 addresses of the interface.
     pub fn get_ipv6_addrs(&self) -> Result<Vec<net::Ipv6Addr>> {
         // `getifaddrs` returns all addresses of all interfaces in the system.
         Ok(nix::ifaddrs::getifaddrs()?
@@ -231,13 +184,6 @@ impl Device {
     }
 
     /// Deletes the specified IPv6 address from the interface.
-    ///
-    /// # Arguments
-    /// * `addr`: IPv6 address to be removed from the interface.
-    ///
-    /// # Returns
-    /// * `Ok`: If the specified IPv6 address was removed.
-    /// * `Err`: If the ioctl failed.
     pub fn del_ipv6_addr(&self, addr: net::Ipv6Addr) -> Result<()> {
         let ifindex = self.get_index()?;
 
@@ -259,13 +205,6 @@ impl Device {
     }
 
     /// Sets the IPv4 address of the device.
-    ///
-    /// # Arguments
-    /// * `addr`: New IPv4 address of the device.
-    ///
-    /// # Returns
-    /// * `Ok`: If the IPv4 address of the device has been successfully changed.
-    /// * `Err`: If the ioctl failed.
     pub fn set_addr(&self, addr: net::Ipv4Addr) -> Result<()> {
         let mut ifreq = self.new_ifreq();
 
@@ -281,11 +220,7 @@ impl Device {
         Ok(())
     }
 
-    /// Gets the IPv4 address of the device.
-    ///
-    /// # Returns
-    /// * `Ok`: Containing the IPv4 address of the device.
-    /// * `Err`: If the ioctl failed.
+    /// Returns the IPv4 address of the device.
     pub fn get_addr(&self) -> Result<net::Ipv4Addr> {
         let mut ifreq = self.new_ifreq();
 
@@ -296,16 +231,14 @@ impl Device {
             )?
         };
 
-        // Safety: Since we issued a ioctl for getting the netmask, it's safe to assume
+        // Safety:
+        //
+        // Since we issued a ioctl for getting the netmask, it's safe to assume
         // that if the ioctl was successfull, kernel had set the `ifru_netmask` variant.
         Ok(sockaddr::to_ipv4(unsafe { ifreq.ifr_ifru.ifru_addr }))
     }
 
     /// Deletes the IPv4 address of the interface.
-    ///
-    /// # Returns
-    /// * `Ok`: If the IPv4 address was removed.
-    /// * `Err`: If the ioctl failed.
     pub fn del_addr(&self) -> Result<()> {
         let mut ifreq = self.new_ifreq();
 
@@ -323,17 +256,10 @@ impl Device {
     }
 
     /// Sets the broadcast IPv4 address of the device.
-    ///
-    /// # Arguments
-    /// * `brd_addr`: New broadcast address of the device.
-    ///
-    /// # Returns
-    /// * `Ok`: If the broadcast IPv4 address of the device has been successfully changed.
-    /// * `Err`: If the ioctl failed.
-    pub fn set_brd_addr(&self, brd_addr: net::Ipv4Addr) -> Result<()> {
+    pub fn set_brd_addr(&self, addr: net::Ipv4Addr) -> Result<()> {
         let mut ifreq = self.new_ifreq();
 
-        ifreq.ifr_ifru.ifru_broadaddr = sockaddr::to_sockaddr(brd_addr);
+        ifreq.ifr_ifru.ifru_broadaddr = sockaddr::to_sockaddr(addr);
 
         unsafe {
             ioctl::siocsifbrdaddr(
@@ -345,11 +271,7 @@ impl Device {
         Ok(())
     }
 
-    /// Gets the broadcast IPv4 address of the device.
-    ///
-    /// # Returns
-    /// * `Ok`: Containing the broadcast IPv4 address of the device.
-    /// * `Err`: If the ioctl failed.
+    /// Returns the broadcast IPv4 address of the device.
     pub fn get_brd_addr(&self) -> Result<net::Ipv4Addr> {
         let mut ifreq = self.new_ifreq();
 
@@ -360,23 +282,18 @@ impl Device {
             )?
         };
 
-        // Safety: Since we issued a ioctl for getting the broadcast address, it's safe to assume
+        // Safety:
+        //
+        // Since we issued a ioctl for getting the broadcast address, it's safe to assume
         // that if the ioctl was successfull, kernel had set the `ifru_broadaddr` variant.
         Ok(sockaddr::to_ipv4(unsafe { ifreq.ifr_ifru.ifru_broadaddr }))
     }
 
     /// Sets the destination IPv4 address of the device.
-    ///
-    /// # Arguments
-    /// * `dst_addr`: New destination IPv4 address of the device.
-    ///
-    /// # Returns
-    /// * `Ok`: If the destination IPv4 address of the device has been successfully changed.
-    /// * `Err`: If the ioctl failed.
-    pub fn set_dst_addr(&self, dst_addr: net::Ipv4Addr) -> Result<()> {
+    pub fn set_dst_addr(&self, addr: net::Ipv4Addr) -> Result<()> {
         let mut ifreq = self.new_ifreq();
 
-        ifreq.ifr_ifru.ifru_dstaddr = sockaddr::to_sockaddr(dst_addr);
+        ifreq.ifr_ifru.ifru_dstaddr = sockaddr::to_sockaddr(addr);
 
         unsafe {
             ioctl::siocsifdstaddr(
@@ -388,11 +305,7 @@ impl Device {
         Ok(())
     }
 
-    /// Gets the destination IPv4 address of the device.
-    ///
-    /// # Returns
-    /// * `Ok`: Containing the destination IPv4 address of the device.
-    /// * `Err`: If the ioctl failed.
+    /// Returns the destination IPv4 address of the device.
     pub fn get_dst_addr(&self) -> Result<net::Ipv4Addr> {
         let mut ifreq = self.new_ifreq();
 
@@ -403,7 +316,9 @@ impl Device {
             )?
         };
 
-        // Safety: Since we issued a ioctl for getting the destination address, it's safe to assume
+        // Safety:
+        //
+        // Since we issued a ioctl for getting the destination address, it's safe to assume
         // that if the ioctl was successfull, kernel had set the `ifru_dstaddr` variant.
         Ok(sockaddr::to_ipv4(unsafe { ifreq.ifr_ifru.ifru_dstaddr }))
     }
@@ -471,27 +386,14 @@ impl Device {
         Ok(unsafe { ifreq.ifr_ifru.ifru_flags.into() })
     }
 
-    // Modifies the active flags of the device based on the requested operation specified by `op`.
-    fn mod_flags(&self, op: Op, new_flags: i32) -> Result<()> {
+    fn add_flags(&self, flags: i32) -> Result<()> {
         let mut ifreq = self.new_ifreq();
 
-        // We first read the active flags.
         ifreq.ifr_ifru.ifru_flags = self.read_flags()? as i16;
 
-        // Apply the requested modifications.
         unsafe {
-            match op {
-                // Consider having the bits: 1110 meaning second, third and forth flags are active.
-                // If we want to active the first flag, we could OR 0001 with 1110 and get 1111.
-                Op::Add => ifreq.ifr_ifru.ifru_flags |= new_flags as i16,
+            ifreq.ifr_ifru.ifru_flags |= flags as i16;
 
-                // Consider having the bits: 1110 meaning second, third and forth flags are active.
-                // If we want to deactive the second flag, we could first NOT the 0010 to get 1101.
-                // Now if we AND 1101 with 1110, we get 1100.
-                Op::Del => ifreq.ifr_ifru.ifru_flags &= !(new_flags) as i16,
-            }
-
-            // Then finally set the updated flags.
             ioctl::siocsifflags(
                 self.inet4_socket.as_raw_fd(),
                 &ifreq as *const bindings::ifreq,
@@ -501,26 +403,29 @@ impl Device {
         Ok(())
     }
 
-    /// Blocks and writes the data in `buf` into the device.
-    ///
-    /// # Arguments
-    /// * `buf`: Data to be written into the device.
-    ///
-    /// # Returns
-    /// * `Ok`: Containing the number of bytes written.
-    /// * `Err`: If any error occurs.
+    fn del_flags(&self, flags: i32) -> Result<()> {
+        let mut ifreq = self.new_ifreq();
+
+        ifreq.ifr_ifru.ifru_flags = self.read_flags()? as i16;
+
+        unsafe {
+            ifreq.ifr_ifru.ifru_flags &= !(flags) as i16;
+
+            ioctl::siocsifflags(
+                self.inet4_socket.as_raw_fd(),
+                &ifreq as *const bindings::ifreq,
+            )?;
+        }
+
+        Ok(())
+    }
+
+    /// Writes the data in `buf` into the device.
     pub fn send(&self, buf: &[u8]) -> Result<usize> {
         Ok(nix::unistd::write(self.file.as_raw_fd(), buf)?)
     }
 
-    /// Blocks and read the data from device into `buf`.
-    ///
-    /// # Arguments
-    /// * `buf`: Buffer to be filled with data read from the device.
-    ///
-    /// # Returns
-    /// * `Ok`: Containing the number of bytes read.
-    /// * `Err`: If any error occurs.
+    /// Reads the data from device into `buf`.
     pub fn recv(&self, buf: &mut [u8]) -> Result<usize> {
         Ok(nix::unistd::read(self.file.as_raw_fd(), buf)?)
     }
@@ -549,6 +454,7 @@ impl AsRawFd for Device {
 }
 
 /// Represents a blocking TUN device.
+#[derive(Debug)]
 pub struct Tun(Device);
 impl Tun {
     pub fn new(name: impl AsRef<str>, packet_info: bool) -> Result<Self> {
@@ -571,6 +477,7 @@ impl ops::DerefMut for Tun {
 }
 
 /// Represents a blocking TAP device.
+#[derive(Debug)]
 pub struct Tap(Device);
 impl Tap {
     pub fn new(name: impl AsRef<str>, packet_info: bool) -> Result<Self> {

@@ -14,6 +14,7 @@ use crate::error::Result;
 ///
 /// Contains the shared code between [`AsyncTun`](crate::AsyncTun) and [`AsyncTap`](crate::AsyncTap).
 #[cfg_attr(docsrs, doc(cfg(feature = "tokio")))]
+#[derive(Debug)]
 pub struct AsyncDevice(AsyncFd<Device>);
 impl AsyncDevice {
     fn new(name: impl AsRef<str>, mode: Mode, packet_info: bool) -> Result<Self> {
@@ -159,6 +160,7 @@ impl AsyncWrite for AsyncDevice {
 
 /// Represents a non-blocking TUN device.
 #[cfg_attr(docsrs, doc(cfg(feature = "tokio")))]
+#[derive(Debug)]
 pub struct AsyncTun(AsyncDevice);
 impl AsyncTun {
     pub fn new(name: impl AsRef<str>, packet_info: bool) -> Result<Self> {
@@ -182,6 +184,7 @@ impl ops::DerefMut for AsyncTun {
 
 /// Represents a non-blocking TAP device.
 #[cfg_attr(docsrs, doc(cfg(feature = "tokio")))]
+#[derive(Debug)]
 pub struct AsyncTap(AsyncDevice);
 impl AsyncTap {
     pub fn new(name: impl AsRef<str>, packet_info: bool) -> Result<Self> {

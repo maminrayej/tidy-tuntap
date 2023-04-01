@@ -9,6 +9,7 @@ use crate::{bindings, ioctl, Mode};
 /// Represents a multiqueue TUN/TAP device.
 ///
 /// Contains the shared code between [`MQTun`](crate::MQTun) and [`MQTap`](crate::MQTap).
+#[derive(Debug)]
 pub struct MQDevice(Device);
 impl MQDevice {
     fn new(
@@ -79,6 +80,7 @@ impl ops::DerefMut for MQDevice {
 }
 
 /// Represents a multiqueue TUN device.
+#[derive(Debug)]
 pub struct MQTun(MQDevice);
 impl MQTun {
     pub fn new(name: impl AsRef<str>, device_count: usize, packet_info: bool) -> Result<Vec<Self>> {
@@ -101,6 +103,7 @@ impl ops::DerefMut for MQTun {
 }
 
 /// Represents a mutliqueue TAP device.
+#[derive(Debug)]
 pub struct MQTap(MQDevice);
 impl MQTap {
     pub fn new(name: impl AsRef<str>, device_count: usize, packet_info: bool) -> Result<Vec<Self>> {
