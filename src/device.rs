@@ -324,7 +324,7 @@ impl Device {
     }
 
     /// Set the hwaddr of the device.
-    /// Will panic if used on a tun device.
+    /// Will return nix::Error(EOPNOTSUPP) if used on a tun device.
     pub fn set_hwaddr(&self, hwaddr: [u8; 6]) -> Result<()> {
         let mut ifreq = self.new_ifreq();
 
