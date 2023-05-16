@@ -6,7 +6,7 @@ use std::{fs, io, net, ops};
 use crate::common::create_device;
 use crate::error::Result;
 use crate::flags::Flags;
-use crate::{bindings, ioctl, sockaddr, Mode};
+use crate::{bindings, sockaddr::sockaddr, ioctl, Mode};
 
 /// Represents a blocking TUN/TAP device.
 ///
@@ -96,7 +96,7 @@ impl Device {
     pub fn set_netmask(&self, netmask: net::Ipv4Addr) -> Result<()> {
         let mut ifreq = self.new_ifreq();
 
-        ifreq.ifr_ifru.ifru_netmask = sockaddr::to_sockaddr(netmask);
+        ifreq.ifr_ifru.ifru_netmask = sockaddr::from(netmask);
 
         unsafe {
             ioctl::siocsifnetmask(
@@ -123,7 +123,7 @@ impl Device {
         //
         // Since we issued an ioctl for getting the netmask, it's safe to assume
         // that if the ioctl was successfull, kernel had set the `ifru_netmask` variant.
-        Ok(sockaddr::to_ipv4(unsafe { ifreq.ifr_ifru.ifru_netmask }))
+        Ok(unsafe { ifreq.ifr_ifru.ifru_netmask }.into())
     }
 
     /// Returns the index of the interface.
@@ -178,7 +178,7 @@ impl Device {
                     .and_then(|addr| addr.as_sockaddr_in6().map(|in6_addr| in6_addr.ip()))
                 //                   ----------------------                -------------
                 //                     try to convert the                   extract the
-                //                     address to IPv6                      ip from IPv6
+                //                     address to Isockaddr::into(Pv6                      ip from IPv6
             })
             .collect())
     }
@@ -208,7 +208,7 @@ impl Device {
     pub fn set_addr(&self, addr: net::Ipv4Addr) -> Result<()> {
         let mut ifreq = self.new_ifreq();
 
-        ifreq.ifr_ifru.ifru_addr = sockaddr::to_sockaddr(addr);
+        ifreq.ifr_ifru.ifru_addr = sockaddr::from(addr);
 
         unsafe {
             ioctl::siocsifaddr(
@@ -235,7 +235,7 @@ impl Device {
         //
         // Since we issued a ioctl for getting the netmask, it's safe to assume
         // that if the ioctl was successfull, kernel had set the `ifru_netmask` variant.
-        Ok(sockaddr::to_ipv4(unsafe { ifreq.ifr_ifru.ifru_addr }))
+        Ok(unsafe { ifreq.ifr_ifru.ifru_addr }.into())
     }
 
     /// Deletes the IPv4 address of the interface.
@@ -243,7 +243,7 @@ impl Device {
         let mut ifreq = self.new_ifreq();
 
         ifreq.ifr_ifru.ifru_addr =
-            sockaddr::to_sockaddr(net::Ipv4Addr::from_str("0.0.0.0").unwrap());
+            sockaddr::from(net::Ipv4Addr::from_str("0.0.0.0").unwrap());
 
         unsafe {
             ioctl::siocsifaddr(
@@ -259,7 +259,7 @@ impl Device {
     pub fn set_brd_addr(&self, addr: net::Ipv4Addr) -> Result<()> {
         let mut ifreq = self.new_ifreq();
 
-        ifreq.ifr_ifru.ifru_broadaddr = sockaddr::to_sockaddr(addr);
+        ifreq.ifr_ifru.ifru_broadaddr = sockaddr::from(addr);
 
         unsafe {
             ioctl::siocsifbrdaddr(
@@ -286,14 +286,14 @@ impl Device {
         //
         // Since we issued a ioctl for getting the broadcast address, it's safe to assume
         // that if the ioctl was successfull, kernel had set the `ifru_broadaddr` variant.
-        Ok(sockaddr::to_ipv4(unsafe { ifreq.ifr_ifru.ifru_broadaddr }))
+        Ok(unsafe { ifreq.ifr_ifru.ifru_broadaddr }.into())
     }
 
     /// Sets the destination IPv4 address of the device.
     pub fn set_dst_addr(&self, addr: net::Ipv4Addr) -> Result<()> {
         let mut ifreq = self.new_ifreq();
 
-        ifreq.ifr_ifru.ifru_dstaddr = sockaddr::to_sockaddr(addr);
+        ifreq.ifr_ifru.ifru_dstaddr = sockaddr::from(addr);
 
         unsafe {
             ioctl::siocsifdstaddr(
@@ -320,7 +320,36 @@ impl Device {
         //
         // Since we issued a ioctl for getting the destination address, it's safe to assume
         // that if the ioctl was successfull, kernel had set the `ifru_dstaddr` variant.
-        Ok(sockaddr::to_ipv4(unsafe { ifreq.ifr_ifru.ifru_dstaddr }))
+        Ok(unsafe { ifreq.ifr_ifru.ifru_dstaddr }.into())
+    }
+
+    /// Set the hwaddr of the device.
+    /// Will panic if used on a tun device.
+    pub fn set_hwaddr(&self, hwaddr: [u8; 6]) -> Result<()> {
+        let mut ifreq = self.new_ifreq();
+
+        ifreq.ifr_ifru.ifru_hwaddr = sockaddr::from(hwaddr);
+
+        unsafe {
+            ioctl::siocsifhwaddr(self.inet4_socket.as_raw_fd(), &mut ifreq as *mut bindings::ifreq)?
+        };
+
+        Ok(())
+    }
+
+    /// Get the hwaddr of the device.
+    pub fn get_hwaddr(&self) -> Result<[u8; 6]> {
+        let mut ifreq = self.new_ifreq();
+
+        unsafe {
+            ioctl::siocgifhwaddr(self.inet4_socket.as_raw_fd(), &mut ifreq as *mut bindings::ifreq)?
+        };
+
+        // Safety:
+        //
+        // Since we issued a ioctl for getting the hardware address, it's safe to assume
+        // that if the ioctl was successfull, kernel had set the `ifru_hwaddr` variant.
+        Ok(unsafe { ifreq.ifr_ifru.ifru_hwaddr }.into())
     }
 
     //    /// Sets the owner of the device.
