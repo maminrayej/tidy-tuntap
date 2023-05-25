@@ -323,35 +323,6 @@ impl Device {
         Ok(unsafe { ifreq.ifr_ifru.ifru_dstaddr }.into())
     }
 
-    /// Set the hwaddr of the device.
-    /// Will return nix::Error(EOPNOTSUPP) if used on a tun device.
-    pub fn set_hwaddr(&self, hwaddr: [u8; 6]) -> Result<()> {
-        let mut ifreq = self.new_ifreq();
-
-        ifreq.ifr_ifru.ifru_hwaddr = sockaddr::from(hwaddr);
-
-        unsafe {
-            ioctl::siocsifhwaddr(self.inet4_socket.as_raw_fd(), &mut ifreq as *mut bindings::ifreq)?
-        };
-
-        Ok(())
-    }
-
-    /// Get the hwaddr of the device.
-    pub fn get_hwaddr(&self) -> Result<[u8; 6]> {
-        let mut ifreq = self.new_ifreq();
-
-        unsafe {
-            ioctl::siocgifhwaddr(self.inet4_socket.as_raw_fd(), &mut ifreq as *mut bindings::ifreq)?
-        };
-
-        // Safety:
-        //
-        // Since we issued a ioctl for getting the hardware address, it's safe to assume
-        // that if the ioctl was successfull, kernel had set the `ifru_hwaddr` variant.
-        Ok(unsafe { ifreq.ifr_ifru.ifru_hwaddr }.into())
-    }
-
     //    /// Sets the owner of the device.
     //    ///
     //    /// # Arguments
@@ -393,7 +364,7 @@ impl Device {
     //    }
 
     // Returns an empty ifreq with the same name of this device.
-    fn new_ifreq(&self) -> bindings::ifreq {
+    pub(crate) fn new_ifreq(&self) -> bindings::ifreq {
         let mut ifreq: bindings::ifreq = unsafe { std::mem::zeroed() };
 
         ifreq.ifr_ifrn.ifrn_name = *self.name;
@@ -505,6 +476,38 @@ impl ops::DerefMut for Tun {
     }
 }
 
+pub trait TapDevice {
+    fn get_device(&self) -> &Device;
+
+    /// Set the hwaddr of the device.
+    fn set_hwaddr(&self, hwaddr: [u8; 6]) -> Result<()> {
+        let mut ifreq = self.get_device().new_ifreq();
+
+        ifreq.ifr_ifru.ifru_hwaddr = sockaddr::from(hwaddr);
+
+        unsafe {
+            ioctl::siocsifhwaddr(self.get_device().inet4_socket.as_raw_fd(), &mut ifreq as *mut bindings::ifreq)?
+        };
+
+        Ok(())
+    }
+
+    /// Get the hwaddr of the device.
+    fn get_hwaddr(&self) -> Result<[u8; 6]> {
+        let mut ifreq = self.get_device().new_ifreq();
+
+        unsafe {
+            ioctl::siocgifhwaddr(self.get_device().inet4_socket.as_raw_fd(), &mut ifreq as *mut bindings::ifreq)?
+        };
+
+        // Safety:
+        //
+        // Since we issued a ioctl for getting the hardware address, it's safe to assume
+        // that if the ioctl was successfull, kernel had set the `ifru_hwaddr` variant.
+        Ok(unsafe { ifreq.ifr_ifru.ifru_hwaddr }.into())
+    }
+}
+
 /// Represents a blocking TAP device.
 #[derive(Debug)]
 pub struct Tap(Device);
@@ -525,5 +528,10 @@ impl ops::Deref for Tap {
 impl ops::DerefMut for Tap {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
+    }
+}
+impl TapDevice for Tap {
+    fn get_device(&self) -> &Device {
+        &self.0
     }
 }

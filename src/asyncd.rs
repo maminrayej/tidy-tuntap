@@ -6,6 +6,7 @@ use std::task::{Context, Poll};
 use tokio::io::unix::AsyncFd;
 use tokio::io::{AsyncRead, AsyncWrite};
 
+use crate::TapDevice;
 use crate::common::{create_device, Mode};
 use crate::device::Device;
 use crate::error::Result;
@@ -203,5 +204,10 @@ impl ops::Deref for AsyncTap {
 impl ops::DerefMut for AsyncTap {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
+    }
+}
+impl TapDevice for AsyncTap {
+    fn get_device(&self) -> &Device {
+        &self.0.0.get_ref()
     }
 }
