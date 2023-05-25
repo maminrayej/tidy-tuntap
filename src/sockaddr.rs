@@ -47,10 +47,10 @@ impl From<net::Ipv4Addr> for bindings::sockaddr {
 }
 impl From<[u8; 6]> for bindings::sockaddr {
     fn from(addr: [u8; 6]) -> Self {
-        let mut addr = addr.to_vec();
-        addr.append(&mut [0x00; 8].to_vec());
+        let mut padded_addr = [0u8; 14];
+        padded_addr[..6].copy_from_slice(&addr);
         
-        bindings::sockaddr { sa_family: nix::libc::ARPHRD_ETHER, sa_data: addr.iter().map(|x| *x as i8).collect::<Vec<i8>>().try_into().unwrap() }
+        bindings::sockaddr { sa_family: nix::libc::ARPHRD_ETHER, sa_data: padded_addr.map(|x| x as i8) }
     }
 }
 impl Into<net::Ipv4Addr> for bindings::sockaddr {
@@ -62,6 +62,8 @@ impl Into<net::Ipv4Addr> for bindings::sockaddr {
 }
 impl Into<[u8; 6]> for bindings::sockaddr {
     fn into(self) -> [u8; 6] {
-        self.sa_data[0..6].iter().map(|x| *x as u8).collect::<Vec<u8>>().try_into().unwrap()
+        let mut addr = [0i8; 6];
+        addr.copy_from_slice(&self.sa_data[..6]);
+        addr.map(|x| x as u8)
     }
 }
