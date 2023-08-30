@@ -28,7 +28,7 @@
 
 use std::net;
 
-use crate::bindings;
+use crate::bindings::{self, sockaddr_llc};
 
 pub use bindings::sockaddr as sockaddr;
 
@@ -62,8 +62,8 @@ impl Into<net::Ipv4Addr> for bindings::sockaddr {
 }
 impl Into<[u8; 6]> for bindings::sockaddr {
     fn into(self) -> [u8; 6] {
-        let mut addr = [0i8; 6];
-        addr.copy_from_slice(&self.sa_data[..6]);
-        addr.map(|x| x as u8)
+        let sockaddr: sockaddr_llc = unsafe { std::mem::transmute(self) };
+        
+        sockaddr.sllc_mac
     }
 }
