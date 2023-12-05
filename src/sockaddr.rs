@@ -28,9 +28,10 @@
 
 use std::net;
 
-use crate::bindings::{self, sockaddr_llc};
+use crate::bindings;
 
 pub use bindings::sockaddr as sockaddr;
+use nix::libc::ARPHRD_ETHER;
 
 impl From<net::Ipv4Addr> for bindings::sockaddr {
     fn from(addr: net::Ipv4Addr) -> Self {
@@ -47,10 +48,13 @@ impl From<net::Ipv4Addr> for bindings::sockaddr {
 }
 impl From<[u8; 6]> for bindings::sockaddr {
     fn from(addr: [u8; 6]) -> Self {
-        let mut padded_addr = [0u8; 14];
-        padded_addr[..6].copy_from_slice(&addr);
-        
-        bindings::sockaddr { sa_family: nix::libc::ARPHRD_ETHER, sa_data: padded_addr.map(|x| x as i8) }
+        let mut sockaddr: bindings::sockaddr = unsafe { std::mem::zeroed() };
+
+        sockaddr.sa_family = ARPHRD_ETHER;
+
+        sockaddr.sa_data[0..6].copy_from_slice(&addr.map(|x| x as i8).as_slice());
+
+        sockaddr 
     }
 }
 impl Into<net::Ipv4Addr> for bindings::sockaddr {
@@ -62,8 +66,10 @@ impl Into<net::Ipv4Addr> for bindings::sockaddr {
 }
 impl Into<[u8; 6]> for bindings::sockaddr {
     fn into(self) -> [u8; 6] {
-        let sockaddr: sockaddr_llc = unsafe { std::mem::transmute(self) };
-        
-        sockaddr.sllc_mac
+        let mut addr = [0x00; 6];
+
+        addr.copy_from_slice(&self.sa_data[0..6]);
+
+        addr.map(|x| x as u8)
     }
 }
