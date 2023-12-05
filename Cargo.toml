@@ -17,7 +17,7 @@ thiserror = "1.0.32"
 tokio = { version = "1.20.1", features = ["net"], optional = true }
 
 [build-dependencies]
-bindgen = "0.60.1"
+bindgen = "0.69.1"
 
 [dev-dependencies]
 etherparse = "0.12.0"
