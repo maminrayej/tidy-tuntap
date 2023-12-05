@@ -13,13 +13,14 @@ pub enum Mode {
     Tap,
 }
 
+type InternalDevice = (Arc<[i8; 16]>, Vec<fs::File>, Arc<OwnedFd>, Arc<OwnedFd>);
 pub fn create_device(
     name: impl AsRef<str>,
     mode: Mode,
     device_count: usize,
     packet_info: bool,
     non_blocking: bool,
-) -> Result<(Arc<[i8; 16]>, Vec<fs::File>, Arc<OwnedFd>, Arc<OwnedFd>)> {
+) -> Result<InternalDevice> {
     let mut flags = match mode {
         Mode::Tun => nix::libc::IFF_TUN,
         Mode::Tap => nix::libc::IFF_TAP,
