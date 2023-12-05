@@ -7,7 +7,7 @@ use etherparse::{IpHeader, PacketHeaders, TransportHeader};
 use tidy_tuntap::*;
 
 fn main() {
-    let mq = Arc::new(MQTun::new("tun10", 3, false).unwrap());
+    let mq = Arc::new(Tun::new_mq("tun10", 3, false).unwrap());
 
     mq[0].bring_up().unwrap();
     mq[0].set_addr(Ipv4Addr::new(10, 10, 10, 1)).unwrap();

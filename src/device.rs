@@ -1,35 +1,39 @@
+use std::marker::PhantomData;
 use std::os::unix::prelude::*;
 use std::str::FromStr;
 use std::sync::Arc;
-use std::{fs, io, net, ops};
+use std::{fs, io, net};
 
 use crate::common::create_device;
 use crate::error::Result;
 use crate::flags::Flags;
-use crate::{bindings, sockaddr::sockaddr, ioctl, Mode};
+use crate::type_state::{InterfaceType, Tap};
+use crate::{bindings, ioctl, sockaddr::sockaddr};
 
 /// Represents a blocking TUN/TAP device.
 ///
 /// Contains the shared code between [`Tun`](crate::Tun) and [`Tap`](crate::Tap).
 #[derive(Debug)]
-pub struct Device {
+pub struct Device<IfType: InterfaceType> {
     pub(crate) name: Arc<[i8; 16]>,
     pub(crate) file: fs::File,
 
     pub(crate) inet4_socket: Arc<OwnedFd>,
     pub(crate) inet6_socket: Arc<OwnedFd>,
+    pub(crate) _phantom: PhantomData<IfType>,
 }
 
-impl Device {
-    fn new(name: impl AsRef<str>, mode: Mode, packet_info: bool) -> Result<Self> {
+impl<IfType: InterfaceType> Device<IfType> {
+    pub(crate) fn new(name: impl AsRef<str>, packet_info: bool) -> Result<Self> {
         let (name, mut files, inet4_socket, inet6_socket) =
-            create_device(name, mode, 1, packet_info, false)?;
+            create_device(name, IfType::MODE, 1, packet_info, false)?;
 
         Ok(Self {
             name,
             file: files.pop().unwrap(),
             inet4_socket,
             inet6_socket,
+            _phantom: PhantomData,
         })
     }
 
@@ -178,7 +182,7 @@ impl Device {
                     .and_then(|addr| addr.as_sockaddr_in6().map(|in6_addr| in6_addr.ip()))
                 //                   ----------------------                -------------
                 //                     try to convert the                   extract the
-                //                     address to Isockaddr::into(Pv6                      ip from IPv6
+                //                     address to Isockaddr::into(IPv6      ip from IPv6
             })
             .collect())
     }
@@ -242,8 +246,7 @@ impl Device {
     pub fn del_addr(&self) -> Result<()> {
         let mut ifreq = self.new_ifreq();
 
-        ifreq.ifr_ifru.ifru_addr =
-            sockaddr::from(net::Ipv4Addr::from_str("0.0.0.0").unwrap());
+        ifreq.ifr_ifru.ifru_addr = sockaddr::from(net::Ipv4Addr::from_str("0.0.0.0").unwrap());
 
         unsafe {
             ioctl::siocsifaddr(
@@ -430,74 +433,33 @@ impl Device {
         Ok(nix::unistd::read(self.file.as_raw_fd(), buf)?)
     }
 }
-
-impl io::Read for Device {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        self.file.read(buf)
-    }
-}
-
-impl io::Write for Device {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        self.file.write(buf)
-    }
-
-    fn flush(&mut self) -> io::Result<()> {
-        self.file.flush()
-    }
-}
-
-impl AsRawFd for Device {
-    fn as_raw_fd(&self) -> RawFd {
-        self.file.as_raw_fd()
-    }
-}
-
-/// Represents a blocking TUN device.
-#[derive(Debug)]
-pub struct Tun(Device);
-impl Tun {
-    pub fn new(name: impl AsRef<str>, packet_info: bool) -> Result<Self> {
-        let device = Device::new(name, Mode::Tun, packet_info)?;
-
-        Ok(Tun(device))
-    }
-}
-impl ops::Deref for Tun {
-    type Target = Device;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-impl ops::DerefMut for Tun {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-pub trait TapDevice {
-    fn get_device(&self) -> &Device;
-
+// tap specific
+impl Device<Tap> {
     /// Set the hwaddr of the device.
-    fn set_hwaddr(&self, hwaddr: [u8; 6]) -> Result<()> {
-        let mut ifreq = self.get_device().new_ifreq();
+    pub fn set_hwaddr(&self, hwaddr: [u8; 6]) -> Result<()> {
+        let mut ifreq = self.new_ifreq();
 
         ifreq.ifr_ifru.ifru_hwaddr = sockaddr::from(hwaddr);
 
         unsafe {
-            ioctl::siocsifhwaddr(self.get_device().inet4_socket.as_raw_fd(), &mut ifreq as *mut bindings::ifreq)?
+            ioctl::siocsifhwaddr(
+                self.inet4_socket.as_raw_fd(),
+                &mut ifreq as *mut bindings::ifreq,
+            )?
         };
 
         Ok(())
     }
 
     /// Get the hwaddr of the device.
-    fn get_hwaddr(&self) -> Result<[u8; 6]> {
-        let mut ifreq = self.get_device().new_ifreq();
+    pub fn get_hwaddr(&self) -> Result<[u8; 6]> {
+        let mut ifreq = self.new_ifreq();
 
         unsafe {
-            ioctl::siocgifhwaddr(self.get_device().inet4_socket.as_raw_fd(), &mut ifreq as *mut bindings::ifreq)?
+            ioctl::siocgifhwaddr(
+                self.inet4_socket.as_raw_fd(),
+                &mut ifreq as *mut bindings::ifreq,
+            )?
         };
 
         // Safety:
@@ -507,31 +469,24 @@ pub trait TapDevice {
         Ok(unsafe { ifreq.ifr_ifru.ifru_hwaddr }.into())
     }
 }
-
-/// Represents a blocking TAP device.
-#[derive(Debug)]
-pub struct Tap(Device);
-impl Tap {
-    pub fn new(name: impl AsRef<str>, packet_info: bool) -> Result<Self> {
-        let device = Device::new(name, Mode::Tap, packet_info)?;
-
-        Ok(Tap(device))
+impl<IfType: InterfaceType> io::Read for Device<IfType> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        self.file.read(buf)
     }
 }
-impl ops::Deref for Tap {
-    type Target = Device;
 
-    fn deref(&self) -> &Self::Target {
-        &self.0
+impl<IfType: InterfaceType> io::Write for Device<IfType> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.file.write(buf)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.file.flush()
     }
 }
-impl ops::DerefMut for Tap {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-impl TapDevice for Tap {
-    fn get_device(&self) -> &Device {
-        &self.0
+
+impl<IfType: InterfaceType> AsRawFd for Device<IfType> {
+    fn as_raw_fd(&self) -> RawFd {
+        self.file.as_raw_fd()
     }
 }

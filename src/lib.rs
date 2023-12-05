@@ -27,13 +27,14 @@ pub use common::Mode;
 pub mod error;
 pub mod flags;
 
+mod type_state;
+pub use type_state::*;
+
 mod device;
 pub use device::*;
 
 mod multiq;
 pub use multiq::*;
 
-#[cfg(feature = "tokio")]
 mod asyncd;
-#[cfg(feature = "tokio")]
 pub use asyncd::*;

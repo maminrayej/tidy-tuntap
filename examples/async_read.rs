@@ -1,12 +1,12 @@
 use std::net::{Ipv4Addr, UdpSocket};
 
 use etherparse::{IpHeader, PacketHeaders, TransportHeader};
+use futures::AsyncReadExt;
 use tidy_tuntap::*;
-use tokio::io::AsyncReadExt;
 
 #[tokio::main]
 async fn main() {
-    let mut tun = AsyncTun::new("tun10", false).unwrap();
+    let mut tun = Tun::new_async("tun10", false).unwrap();
     tun.bring_up().unwrap();
     tun.set_addr(Ipv4Addr::new(10, 10, 10, 1)).unwrap();
     tun.set_brd_addr(Ipv4Addr::new(10, 10, 10, 255)).unwrap();

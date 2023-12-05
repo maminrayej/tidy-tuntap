@@ -1,33 +1,34 @@
-use std::io::{self, Read, Write};
+use std::future::poll_fn;
+use std::marker::PhantomData;
 use std::ops;
 use std::pin::Pin;
-use std::task::{Context, Poll};
 
-use tokio::io::unix::AsyncFd;
-use tokio::io::{AsyncRead, AsyncWrite};
+use futures::io::AllowStdIo;
+use futures::{AsyncRead, AsyncWrite};
 
-use crate::TapDevice;
-use crate::common::{create_device, Mode};
+use crate::common::create_device;
 use crate::device::Device;
-use crate::error::Result;
+use crate::error::{Error, Result};
+use crate::InterfaceType;
 
 /// Represents a non-blocking TUN/TAP device.
 ///
 /// Contains the shared code between [`AsyncTun`](crate::AsyncTun) and [`AsyncTap`](crate::AsyncTap).
 #[cfg_attr(docsrs, doc(cfg(feature = "tokio")))]
 #[derive(Debug)]
-pub struct AsyncDevice(AsyncFd<Device>);
-impl AsyncDevice {
-    fn new(name: impl AsRef<str>, mode: Mode, packet_info: bool) -> Result<Self> {
+pub struct AsyncDevice<IfType: InterfaceType>(AllowStdIo<Device<IfType>>);
+impl<IfType: InterfaceType> AsyncDevice<IfType> {
+    pub(crate) fn new(name: impl AsRef<str>, packet_info: bool) -> Result<Self> {
         let (name, mut files, inet4_socket, inet6_socket) =
-            create_device(name, mode, 1, packet_info, true)?;
+            create_device(name, IfType::MODE, 1, packet_info, true)?;
 
-        Ok(AsyncDevice(AsyncFd::new(Device {
+        Ok(AsyncDevice(AllowStdIo::new(Device::<IfType> {
             name,
             file: files.pop().unwrap(),
             inet4_socket,
             inet6_socket,
-        })?))
+            _phantom: PhantomData,
+        })))
     }
 
     /// Tries to read data from the device and fill the buffer `buf`.
@@ -64,15 +65,12 @@ impl AsyncDevice {
     /// # Returns
     /// * `Ok`: Containing the number of bytes read from the device.
     /// * `Err`: If reading data was unsuccessful.
-    pub async fn recv(&self, buf: &mut [u8]) -> Result<usize> {
-        loop {
-            let mut guard = self.0.readable().await?;
-
-            match guard.try_io(|tun| Ok(tun.get_ref().recv(buf)?)) {
-                Ok(result) => return Ok(result?),
-                Err(_would_block) => continue,
-            }
-        }
+    pub async fn recv(&mut self, buf: &mut [u8]) -> Result<usize> {
+        poll_fn(|cx| {
+            <AllowStdIo<Device<IfType>> as AsyncRead>::poll_read(Pin::new(&mut self.0), cx, buf)
+        })
+        .await
+        .map_err(Error::IOError)
     }
 
     /// Asyncronously writes data from `buf` to the device.
@@ -83,131 +81,62 @@ impl AsyncDevice {
     /// # Returns
     /// * `Ok`: Containing the number of bytes written from the device.
     /// * `Err`: If writting data was unsuccessful.
-    pub async fn send(&self, buf: &[u8]) -> Result<usize> {
-        loop {
-            let mut guard = self.0.writable().await?;
-
-            match guard.try_io(|tun| Ok(tun.get_ref().send(buf)?)) {
-                Ok(result) => return Ok(result?),
-                Err(_would_block) => continue,
-            }
-        }
+    pub async fn send(&mut self, buf: &[u8]) -> Result<usize> {
+        poll_fn(|cx| {
+            <AllowStdIo<Device<IfType>> as AsyncWrite>::poll_write(Pin::new(&mut self.0), cx, buf)
+        })
+        .await
+        .map_err(Error::IOError)
     }
 }
-
-impl ops::Deref for AsyncDevice {
-    type Target = Device;
+// Currently necessary due to missing Deref and DerefMut implementation: https://github.com/rust-lang/futures-rs/issues/2806.
+impl<IfType: InterfaceType> AsyncRead for AsyncDevice<IfType> {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut [u8],
+    ) -> std::task::Poll<std::io::Result<usize>> {
+        <AllowStdIo<Device<IfType>> as AsyncRead>::poll_read(
+            Pin::new(&mut self.get_mut().0),
+            cx,
+            buf,
+        )
+    }
+}
+impl<IfType: InterfaceType> AsyncWrite for AsyncDevice<IfType> {
+    fn poll_write(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &[u8],
+    ) -> std::task::Poll<std::io::Result<usize>> {
+        <AllowStdIo<Device<IfType>> as AsyncWrite>::poll_write(
+            Pin::new(&mut self.get_mut().0),
+            cx,
+            buf,
+        )
+    }
+    fn poll_close(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<std::io::Result<()>> {
+        <AllowStdIo<Device<IfType>> as AsyncWrite>::poll_close(Pin::new(&mut self.get_mut().0), cx)
+    }
+    fn poll_flush(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<std::io::Result<()>> {
+        <AllowStdIo<Device<IfType>> as AsyncWrite>::poll_flush(Pin::new(&mut self.get_mut().0), cx)
+    }
+}
+impl<IfType: InterfaceType> ops::Deref for AsyncDevice<IfType> {
+    type Target = Device<IfType>;
 
     fn deref(&self) -> &Self::Target {
         self.0.get_ref()
     }
 }
-impl ops::DerefMut for AsyncDevice {
+impl<IfType: InterfaceType> ops::DerefMut for AsyncDevice<IfType> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.0.get_mut()
-    }
-}
-
-impl AsyncRead for AsyncDevice {
-    fn poll_read(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &mut tokio::io::ReadBuf<'_>,
-    ) -> Poll<io::Result<()>> {
-        let self_mut = self.get_mut();
-
-        loop {
-            let mut guard = futures::ready!(self_mut.0.poll_read_ready_mut(cx))?;
-
-            match guard.try_io(|inner| {
-                let read = inner.get_mut().read(buf.initialize_unfilled())?;
-                buf.advance(read);
-
-                Ok(read)
-            }) {
-                Ok(result) => return Poll::Ready(result.map(|_| ())),
-                Err(_would_block) => continue,
-            }
-        }
-    }
-}
-
-impl AsyncWrite for AsyncDevice {
-    fn poll_write(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &[u8],
-    ) -> Poll<io::Result<usize>> {
-        let self_mut = self.get_mut();
-
-        loop {
-            let mut guard = futures::ready!(self_mut.0.poll_write_ready_mut(cx))?;
-
-            match guard.try_io(|inner| inner.get_mut().write(buf)) {
-                Ok(result) => return Poll::Ready(result),
-                Err(_would_block) => continue,
-            }
-        }
-    }
-
-    fn poll_flush(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        Poll::Ready(Ok(()))
-    }
-
-    fn poll_shutdown(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        Poll::Ready(Ok(()))
-    }
-}
-
-/// Represents a non-blocking TUN device.
-#[cfg_attr(docsrs, doc(cfg(feature = "tokio")))]
-#[derive(Debug)]
-pub struct AsyncTun(AsyncDevice);
-impl AsyncTun {
-    pub fn new(name: impl AsRef<str>, packet_info: bool) -> Result<Self> {
-        let device = AsyncDevice::new(name, Mode::Tun, packet_info)?;
-
-        Ok(AsyncTun(device))
-    }
-}
-impl ops::Deref for AsyncTun {
-    type Target = AsyncDevice;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-impl ops::DerefMut for AsyncTun {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-/// Represents a non-blocking TAP device.
-#[cfg_attr(docsrs, doc(cfg(feature = "tokio")))]
-#[derive(Debug)]
-pub struct AsyncTap(AsyncDevice);
-impl AsyncTap {
-    pub fn new(name: impl AsRef<str>, packet_info: bool) -> Result<Self> {
-        let device = AsyncDevice::new(name, Mode::Tap, packet_info)?;
-
-        Ok(AsyncTap(device))
-    }
-}
-impl ops::Deref for AsyncTap {
-    type Target = AsyncDevice;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-impl ops::DerefMut for AsyncTap {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-impl TapDevice for AsyncTap {
-    fn get_device(&self) -> &Device {
-        &self.0.0.get_ref()
     }
 }
