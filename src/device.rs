@@ -12,7 +12,7 @@ use crate::{bindings, ioctl, sockaddr::sockaddr};
 
 /// Represents a blocking TUN/TAP device.
 ///
-/// Contains the shared code between [`Tun`](crate::Tun) and [`Tap`](crate::Tap).
+/// Contains a blocking device.
 #[derive(Debug)]
 pub struct Device<IfType: InterfaceType> {
     pub(crate) name: Arc<[i8; 16]>,

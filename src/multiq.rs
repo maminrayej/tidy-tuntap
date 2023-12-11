@@ -10,7 +10,7 @@ use crate::{bindings, ioctl};
 
 /// Represents a multiqueue TUN/TAP device.
 ///
-/// Contains the shared code between [`MQTun`](crate::MQTun) and [`MQTap`](crate::MQTap).
+/// Contains a multiqueue device.
 #[derive(Debug)]
 pub struct MQDevice<IfType: InterfaceType>(Device<IfType>);
 impl<IfType: InterfaceType> MQDevice<IfType> {

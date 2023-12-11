@@ -13,7 +13,7 @@ use crate::InterfaceType;
 
 /// Represents a non-blocking TUN/TAP device.
 ///
-/// Contains the shared code between [`AsyncTun`](crate::AsyncTun) and [`AsyncTap`](crate::AsyncTap).
+/// Contains an async device.
 #[cfg_attr(docsrs, doc(cfg(feature = "tokio")))]
 #[derive(Debug)]
 pub struct AsyncDevice<IfType: InterfaceType>(AllowStdIo<Device<IfType>>);
