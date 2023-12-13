@@ -6,7 +6,7 @@ use tidy_tuntap::*;
 
 #[tokio::main]
 async fn main() {
-    let mut tun = Tun::new_async("tun10", false).unwrap();
+    let tun = Tun::new_async("tun10", false).unwrap();
     tun.bring_up().unwrap();
     tun.set_addr(Ipv4Addr::new(10, 10, 10, 1)).unwrap();
     tun.set_brd_addr(Ipv4Addr::new(10, 10, 10, 255)).unwrap();

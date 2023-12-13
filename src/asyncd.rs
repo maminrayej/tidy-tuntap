@@ -61,7 +61,7 @@ impl<IfType: InterfaceType> AsyncDevice<IfType> {
     /// # Returns
     /// * `Ok`: Containing the number of bytes read from the device.
     /// * `Err`: If reading data was unsuccessful.
-    pub async fn recv(&mut self, buf: &mut [u8]) -> Result<usize> {
+    pub async fn recv(&self, buf: &mut [u8]) -> Result<usize> {
         loop {
             let mut guard = self.0.readable().await?;
 
@@ -80,7 +80,7 @@ impl<IfType: InterfaceType> AsyncDevice<IfType> {
     /// # Returns
     /// * `Ok`: Containing the number of bytes written from the device.
     /// * `Err`: If writting data was unsuccessful.
-    pub async fn send(&mut self, buf: &[u8]) -> Result<usize> {
+    pub async fn send(&self, buf: &[u8]) -> Result<usize> {
         loop {
             let mut guard = self.0.writable().await?;
 
