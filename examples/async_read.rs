@@ -1,7 +1,6 @@
 use std::net::{Ipv4Addr, UdpSocket};
 
 use etherparse::{IpHeader, PacketHeaders, TransportHeader};
-use futures::AsyncReadExt;
 use tidy_tuntap::*;
 
 #[tokio::main]
@@ -18,7 +17,7 @@ async fn main() {
 
     let mut buf = [0; 1500];
     loop {
-        let bytes_read = tun.read(&mut buf).await.unwrap();
+        let bytes_read = tun.recv(&mut buf).await.unwrap();
 
         if let Ok(packet) = PacketHeaders::from_ip_slice(&buf[..bytes_read]) {
             let ip_h = packet.ip.unwrap();

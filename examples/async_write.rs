@@ -1,7 +1,6 @@
 use std::net::{IpAddr, Ipv4Addr, UdpSocket};
 
 use etherparse::PacketBuilder;
-use futures::AsyncWriteExt;
 
 use tidy_tuntap::*;
 
@@ -20,7 +19,7 @@ async fn main() {
     let mut packet = Vec::<u8>::with_capacity(builder.size(data.len()));
     builder.write(&mut packet, &data).unwrap();
 
-    let _ = tun.write(&packet).await.unwrap();
+    let _ = tun.send(&packet).await.unwrap();
 
     let mut buf = [0; 50];
     let (bytes_read, source) = socket.recv_from(&mut buf).unwrap();
