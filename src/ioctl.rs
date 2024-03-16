@@ -51,3 +51,7 @@ nix::ioctl_read_bad!(siocgifindex, bindings::SIOCGIFINDEX, bindings::ifreq);
 
 // Can be used to delete an IPv6 address of the device.
 nix::ioctl_write_ptr_bad!(siocdifaddr6, bindings::SIOCDIFADDR, bindings::in6_ifreq);
+
+// Can be used to set and get the hardware address of the device.
+nix::ioctl_write_ptr_bad!(siocsifhwaddr, nix::libc::SIOCSIFHWADDR, bindings::ifreq);
+nix::ioctl_read_bad!(siocgifhwaddr, nix::libc::SIOCGIFHWADDR, bindings::ifreq);

@@ -1,13 +1,12 @@
 use std::net::{IpAddr, Ipv4Addr, UdpSocket};
 
 use etherparse::PacketBuilder;
-use tokio::io::AsyncWriteExt;
 
 use tidy_tuntap::*;
 
 #[tokio::main]
 async fn main() {
-    let mut tun = AsyncTun::new("tun10", false).unwrap();
+    let tun = Tun::new_async("tun10", false).unwrap();
     tun.bring_up().unwrap();
     tun.set_addr(Ipv4Addr::new(10, 10, 10, 1)).unwrap();
     tun.set_brd_addr(Ipv4Addr::new(10, 10, 10, 255)).unwrap();
@@ -20,7 +19,7 @@ async fn main() {
     let mut packet = Vec::<u8>::with_capacity(builder.size(data.len()));
     builder.write(&mut packet, &data).unwrap();
 
-    let _ = tun.write(&packet).await.unwrap();
+    let _ = tun.send(&packet).await.unwrap();
 
     let mut buf = [0; 50];
     let (bytes_read, source) = socket.recv_from(&mut buf).unwrap();

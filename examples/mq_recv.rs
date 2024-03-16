@@ -7,7 +7,7 @@ use etherparse::{IpHeader, PacketHeaders, TransportHeader};
 use tidy_tuntap::*;
 
 fn main() {
-    let mq = Arc::new(MQTun::new("tun10", 3, false).unwrap());
+    let mq = Arc::new(Tun::new_mq("tun10", 3, false).unwrap());
 
     mq[0].bring_up().unwrap();
     mq[0].set_addr(Ipv4Addr::new(10, 10, 10, 1)).unwrap();
@@ -61,7 +61,9 @@ fn main() {
 
                     if let Ok(packet) = PacketHeaders::from_ip_slice(&buf[..bytes_read]) {
                         let ip_h = packet.ip.unwrap();
-                        let transport_h = packet.transport.unwrap();
+                        let Some(transport_h) = packet.transport else {
+                            continue;
+                        };
                         if let (IpHeader::Version4(ipv4_h, _), TransportHeader::Udp(udp_h)) =
                             (ip_h, transport_h)
                         {

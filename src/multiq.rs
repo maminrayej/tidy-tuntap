@@ -1,39 +1,42 @@
+use std::marker::PhantomData;
 use std::ops;
 use std::os::unix::prelude::AsRawFd;
 
 use crate::common::create_device;
 use crate::device::Device;
 use crate::error::{Error, Result};
-use crate::{bindings, ioctl, Mode};
+use crate::type_state::InterfaceType;
+use crate::{bindings, ioctl};
 
 /// Represents a multiqueue TUN/TAP device.
 ///
-/// Contains the shared code between [`MQTun`](crate::MQTun) and [`MQTap`](crate::MQTap).
+/// Contains a multiqueue device.
 #[derive(Debug)]
-pub struct MQDevice(Device);
-impl MQDevice {
-    fn new(
+pub struct MQDevice<IfType: InterfaceType>(Device<IfType>);
+impl<IfType: InterfaceType> MQDevice<IfType> {
+    pub(crate) fn new(
         name: impl AsRef<str>,
-        mode: Mode,
         device_count: usize,
         packet_info: bool,
-    ) -> Result<impl Iterator<Item = Self>> {
+    ) -> Result<Vec<Self>> {
         if device_count == 0 {
             return Err(Error::ZeroDevices);
         }
 
         let (name, files, inet4_socket, inet6_socket) =
-            create_device(name, mode, device_count, packet_info, false)?;
+            create_device(name, IfType::MODE, device_count, packet_info, false)?;
 
         Ok(files
             .into_iter()
-            .map(move |file| Device {
+            .map(move |file| Device::<IfType> {
                 name: name.clone(),
                 file,
                 inet4_socket: inet4_socket.clone(),
                 inet6_socket: inet6_socket.clone(),
+                _phantom: PhantomData,
             })
-            .map(MQDevice))
+            .map(MQDevice)
+            .collect())
     }
 
     /// Attaches the multiqueue.
@@ -66,60 +69,14 @@ impl MQDevice {
         Ok(())
     }
 }
-impl ops::Deref for MQDevice {
-    type Target = Device;
+impl<IfType: InterfaceType> ops::Deref for MQDevice<IfType> {
+    type Target = Device<IfType>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
-impl ops::DerefMut for MQDevice {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-/// Represents a multiqueue TUN device.
-#[derive(Debug)]
-pub struct MQTun(MQDevice);
-impl MQTun {
-    pub fn new(name: impl AsRef<str>, device_count: usize, packet_info: bool) -> Result<Vec<Self>> {
-        let devices = MQDevice::new(name, Mode::Tun, device_count, packet_info)?;
-
-        Ok(devices.map(MQTun).collect())
-    }
-}
-impl ops::Deref for MQTun {
-    type Target = MQDevice;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-impl ops::DerefMut for MQTun {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-/// Represents a mutliqueue TAP device.
-#[derive(Debug)]
-pub struct MQTap(MQDevice);
-impl MQTap {
-    pub fn new(name: impl AsRef<str>, device_count: usize, packet_info: bool) -> Result<Vec<Self>> {
-        let devices = MQDevice::new(name, Mode::Tap, device_count, packet_info)?;
-
-        Ok(devices.map(MQTap).collect())
-    }
-}
-impl ops::Deref for MQTap {
-    type Target = MQDevice;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-impl ops::DerefMut for MQTap {
+impl<IfType: InterfaceType> ops::DerefMut for MQDevice<IfType> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }

@@ -1,32 +1,38 @@
-use std::io::{self, Read, Write};
-use std::ops;
+use std::io::{Write, Read};
+use std::marker::PhantomData;
+use std::{ops, io};
 use std::pin::Pin;
 use std::task::{Context, Poll};
-
-use tokio::io::unix::AsyncFd;
+use futures::ready;
 use tokio::io::{AsyncRead, AsyncWrite};
+use tokio::io::unix::AsyncFd;
 
-use crate::common::{create_device, Mode};
+use crate::common::create_device;
 use crate::device::Device;
 use crate::error::Result;
+use crate::InterfaceType;
 
 /// Represents a non-blocking TUN/TAP device.
 ///
-/// Contains the shared code between [`AsyncTun`](crate::AsyncTun) and [`AsyncTap`](crate::AsyncTap).
+/// Contains an async device.
 #[cfg_attr(docsrs, doc(cfg(feature = "tokio")))]
 #[derive(Debug)]
-pub struct AsyncDevice(AsyncFd<Device>);
-impl AsyncDevice {
-    fn new(name: impl AsRef<str>, mode: Mode, packet_info: bool) -> Result<Self> {
+pub struct AsyncDevice<IfType: InterfaceType>(AsyncFd<Device<IfType>>);
+impl<IfType: InterfaceType> AsyncDevice<IfType> {
+    pub(crate) fn new(name: impl AsRef<str>, packet_info: bool) -> Result<Self> {
         let (name, mut files, inet4_socket, inet6_socket) =
-            create_device(name, mode, 1, packet_info, true)?;
+            create_device(name, IfType::MODE, 1, packet_info, true)?;
 
-        Ok(AsyncDevice(AsyncFd::new(Device {
-            name,
-            file: files.pop().unwrap(),
-            inet4_socket,
-            inet6_socket,
-        })?))
+        Ok(AsyncDevice(
+            AsyncFd::new(Device::<IfType> {
+                name,
+                file: files.pop().unwrap(),
+                inet4_socket,
+                inet6_socket,
+                _phantom: PhantomData,
+            })
+            .unwrap(),
+        ))
     }
 
     /// Tries to read data from the device and fill the buffer `buf`.
@@ -94,20 +100,7 @@ impl AsyncDevice {
     }
 }
 
-impl ops::Deref for AsyncDevice {
-    type Target = Device;
-
-    fn deref(&self) -> &Self::Target {
-        self.0.get_ref()
-    }
-}
-impl ops::DerefMut for AsyncDevice {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        self.0.get_mut()
-    }
-}
-
-impl AsyncRead for AsyncDevice {
+impl<IfType: InterfaceType + Unpin> AsyncRead for AsyncDevice<IfType> {
     fn poll_read(
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
@@ -116,7 +109,7 @@ impl AsyncRead for AsyncDevice {
         let self_mut = self.get_mut();
 
         loop {
-            let mut guard = futures::ready!(self_mut.0.poll_read_ready_mut(cx))?;
+            let mut guard = ready!(self_mut.0.poll_read_ready_mut(cx))?;
 
             match guard.try_io(|inner| {
                 let read = inner.get_mut().read(buf.initialize_unfilled())?;
@@ -131,7 +124,7 @@ impl AsyncRead for AsyncDevice {
     }
 }
 
-impl AsyncWrite for AsyncDevice {
+impl<IfType: InterfaceType + Unpin> AsyncWrite for AsyncDevice<IfType> {
     fn poll_write(
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
@@ -140,7 +133,7 @@ impl AsyncWrite for AsyncDevice {
         let self_mut = self.get_mut();
 
         loop {
-            let mut guard = futures::ready!(self_mut.0.poll_write_ready_mut(cx))?;
+            let mut guard = ready!(self_mut.0.poll_write_ready_mut(cx))?;
 
             match guard.try_io(|inner| inner.get_mut().write(buf)) {
                 Ok(result) => return Poll::Ready(result),
@@ -157,51 +150,15 @@ impl AsyncWrite for AsyncDevice {
         Poll::Ready(Ok(()))
     }
 }
-
-/// Represents a non-blocking TUN device.
-#[cfg_attr(docsrs, doc(cfg(feature = "tokio")))]
-#[derive(Debug)]
-pub struct AsyncTun(AsyncDevice);
-impl AsyncTun {
-    pub fn new(name: impl AsRef<str>, packet_info: bool) -> Result<Self> {
-        let device = AsyncDevice::new(name, Mode::Tun, packet_info)?;
-
-        Ok(AsyncTun(device))
-    }
-}
-impl ops::Deref for AsyncTun {
-    type Target = AsyncDevice;
+impl<IfType: InterfaceType> ops::Deref for AsyncDevice<IfType> {
+    type Target = Device<IfType>;
 
     fn deref(&self) -> &Self::Target {
-        &self.0
+        self.0.get_ref()
     }
 }
-impl ops::DerefMut for AsyncTun {
+impl<IfType: InterfaceType> ops::DerefMut for AsyncDevice<IfType> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-/// Represents a non-blocking TAP device.
-#[cfg_attr(docsrs, doc(cfg(feature = "tokio")))]
-#[derive(Debug)]
-pub struct AsyncTap(AsyncDevice);
-impl AsyncTap {
-    pub fn new(name: impl AsRef<str>, packet_info: bool) -> Result<Self> {
-        let device = AsyncDevice::new(name, Mode::Tap, packet_info)?;
-
-        Ok(AsyncTap(device))
-    }
-}
-impl ops::Deref for AsyncTap {
-    type Target = AsyncDevice;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-impl ops::DerefMut for AsyncTap {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
+        self.0.get_mut()
     }
 }
