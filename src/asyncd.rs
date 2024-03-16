@@ -1,5 +1,10 @@
+use std::io::{Write, Read};
 use std::marker::PhantomData;
-use std::ops;
+use std::{ops, io};
+use std::pin::Pin;
+use std::task::{Context, Poll};
+use futures::ready;
+use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::io::unix::AsyncFd;
 
 use crate::common::create_device;
@@ -18,13 +23,16 @@ impl<IfType: InterfaceType> AsyncDevice<IfType> {
         let (name, mut files, inet4_socket, inet6_socket) =
             create_device(name, IfType::MODE, 1, packet_info, true)?;
 
-        Ok(AsyncDevice(AsyncFd::new(Device::<IfType> {
-            name,
-            file: files.pop().unwrap(),
-            inet4_socket,
-            inet6_socket,
-            _phantom: PhantomData,
-        }).unwrap()))
+        Ok(AsyncDevice(
+            AsyncFd::new(Device::<IfType> {
+                name,
+                file: files.pop().unwrap(),
+                inet4_socket,
+                inet6_socket,
+                _phantom: PhantomData,
+            })
+            .unwrap(),
+        ))
     }
 
     /// Tries to read data from the device and fill the buffer `buf`.
@@ -89,6 +97,57 @@ impl<IfType: InterfaceType> AsyncDevice<IfType> {
                 Err(_would_block) => continue,
             }
         }
+    }
+}
+
+impl<IfType: InterfaceType + Unpin> AsyncRead for AsyncDevice<IfType> {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut tokio::io::ReadBuf<'_>,
+    ) -> Poll<io::Result<()>> {
+        let self_mut = self.get_mut();
+
+        loop {
+            let mut guard = ready!(self_mut.0.poll_read_ready_mut(cx))?;
+
+            match guard.try_io(|inner| {
+                let read = inner.get_mut().read(buf.initialize_unfilled())?;
+                buf.advance(read);
+
+                Ok(read)
+            }) {
+                Ok(result) => return Poll::Ready(result.map(|_| ())),
+                Err(_would_block) => continue,
+            }
+        }
+    }
+}
+
+impl<IfType: InterfaceType + Unpin> AsyncWrite for AsyncDevice<IfType> {
+    fn poll_write(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<io::Result<usize>> {
+        let self_mut = self.get_mut();
+
+        loop {
+            let mut guard = ready!(self_mut.0.poll_write_ready_mut(cx))?;
+
+            match guard.try_io(|inner| inner.get_mut().write(buf)) {
+                Ok(result) => return Poll::Ready(result),
+                Err(_would_block) => continue,
+            }
+        }
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn poll_shutdown(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Poll::Ready(Ok(()))
     }
 }
 impl<IfType: InterfaceType> ops::Deref for AsyncDevice<IfType> {

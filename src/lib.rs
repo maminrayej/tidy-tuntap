@@ -11,7 +11,7 @@
  * * Blocking: [`Device`]
  * * Multiqueue: [`MQDevice`]
  * * Non-blocking: [`AsyncDevice`]
- * 
+ *
  * **NOTE**
  * The type of the device is indicated by the type paramter on the device struct.
  */
